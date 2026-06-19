@@ -1,0 +1,63 @@
+# === Model files ===
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+models/
+
+# === Cache and index dirs ===
+.cache/
+.zvec/
+indexes/
+vector-indexes/
+*.zvec
+*.zvecdb
+
+# === Python cache ===
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# === Logs and temp ===
+logs/
+*.log
+tmp/
+temp/
+
+# === Secrets and local config ===
+.env
+*.secret
+secrets/
+config/*.local.json
+config/runtime-node.local.json
+
+# === Windows build artifacts ===
+*.exe
+*.dll
+*.pdb
+*.obj
+*.exp
+*.lib
+
+# === Runtime build output ===
+runtime/bin/
+runtime/llama.cpp/llama-server.exe
+runtime/router/
+
+# === IDE and OS artifacts ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# === Generated/large fixture artifacts (not small JSON evidence) ===
+fixtures/windows-runtime-node/*.log
+fixtures/windows-runtime-node/*.csv
