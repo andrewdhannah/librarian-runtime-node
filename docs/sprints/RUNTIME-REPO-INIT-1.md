@@ -80,8 +80,8 @@ The `.gitignore` excludes:
 | No secrets committed | ✅ PASS |
 | `docs/sprints/RUNTIME-REPO-INIT-1.md` exists | ✅ PASS |
 | `SESSION-HANDOFF.md` identifies WIN-SERVICE-LIFECYCLE-1 as next startup-only sprint | ✅ PASS |
-| Git status clean after commit | ⬜ PENDING |
-| Push result reported | ⬜ PENDING |
+| Git status clean after commit | ✅ PASS — `cf6e62a`, working tree clean |
+| Push result reported | ✅ PASS — pushed to `origin/main` via HTTPS |
 
 ---
 
@@ -90,8 +90,8 @@ The `.gitignore` excludes:
 ```
 Sprint:               RUNTIME-REPO-INIT-1
 Status:               COMPLETE
-Final HEAD:           (first commit)
-Working tree:         (after commit)
+Final HEAD:           cf6e62a
+Working tree:         Clean (35 files)
 Harness result:       N/A (repo init — no runtime verification)
 Stash state:          N/A
 Next sprint:          WIN-SERVICE-LIFECYCLE-1 (startup only)
@@ -100,6 +100,6 @@ Next sprint:          WIN-SERVICE-LIFECYCLE-1 (startup only)
 ## Notes
 
 - SSH key not configured on this machine; remote uses HTTPS.
-- Push requires authentication (see commit step for result).
+- Push succeeded to `origin/main` via HTTPS.
 - The orphan `llama-server.exe` (PID 948) remains as a known lifecycle gap.
 - Evidence files from WIN-ROUTER-IMPL-1 remain at `G:\openwork\thelibrarian\fixtures\windows-runtime-node\router-impl\` and were imported here as reference copies.
