@@ -2,6 +2,19 @@
 # =============================================================================
 # test-context-fit.ps1 — Context Limit Verifier for RX 570 Runtime
 # =============================================================================
+#
+# ⚠ DEPRECATED ⚠
+# This script modifies config/model-profiles.json while the router is running.
+# The router reads the config at startup only and caches profiles in memory.
+# Changing the config file at runtime has NO EFFECT on the in-memory profile
+# data. Backend restarts triggered by this script use STALE profile values.
+#
+# Use scripts/test-reduced-offload-fit.ps1 or scripts/test-reconcile-fit.ps1
+# instead — both correctly stop the router, change config, and restart the
+# router to pick up new values.
+#
+# Kept for reference only. Do not use for producing evidence.
+# =============================================================================
 
 $RouterUrl = "http://127.0.0.1:9130"
 $ConfigPath = "G:\openwork\librarian-runtime-node\config\model-profiles.json"

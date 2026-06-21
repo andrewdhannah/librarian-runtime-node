@@ -165,15 +165,23 @@ Next sprint proposed:   ROUTER-RUST-CORE-1 (planning for native daemon)
 
 ## Notes
 
-- The `test-context-fit.ps1` script was NOT modified because it varies
-  context only and does not handle nlg changes correctly. The new
+- The `test-context-fit.ps1` script was NOT modified during this sprint because
+  it varies context only and does not handle ngl changes correctly. The new
   `test-reduced-offload-fit.ps1` script is the proper tool for ngl-varying
   tests.
+- **FIT-EVIDENCE-RECONCILE-1 follow-up**: The original `test-context-fit.ps1`
+  was **deprecated** in FIT-EVIDENCE-RECONCILE-1 because it uses the stale-cache
+  approach (modifying config while router is running). The corrected script
+  `test-reconcile-fit.ps1` now provides the restart-per-config-change method
+  for non-OOM profile verification.
 - The critical implementation insight — that the router reads config at
   startup only — was discovered during this sprint. The previous
   WIN-MODEL-CONTEXT-FIT-2 tests may have been affected by this same issue.
   The REDUCED-OFFLOAD-FIT-1 script correctly stops and restarts the router
   for each config change.
+- **phi-4 and qwen-coder evidence was reconciled** in FIT-EVIDENCE-RECONCILE-1
+  using the restart-per-config-change method. Both confirmed at ngl=99,
+  context=4096 (and optionally at context=2048).
 - The result that all three OOM profiles run at context 4096 with merely
   ngl=80 (reducing offload from 99 to 80) was unexpected but welcome.
   This means all 5 profiles in the deployment are now usable with full

@@ -2,7 +2,7 @@
     "_meta":  {
                   "description":  "All 5 verified model profiles for Big Pickle router",
                   "generated":  "2026-06-20",
-"source": "WIN-MODEL-CONTEXT-FIT-2 + REDUCED-OFFLOAD-FIT-1",
+"source": "WIN-MODEL-CONTEXT-FIT-2 + REDUCED-OFFLOAD-FIT-1 + FIT-EVIDENCE-RECONCILE-1",
                   "authority":  "advisory_only"
               },
     "defaults":  {

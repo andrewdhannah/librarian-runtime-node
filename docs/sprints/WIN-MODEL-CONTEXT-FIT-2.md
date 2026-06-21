@@ -32,13 +32,53 @@ These models OOM'd at load even at context=1024. A reduced-offload fit test
    - Record: Launch success, Response success, Crash/OOM, Cleanup.
 3. Stop service and verify no orphans.
 
-### Results
-- **phi-4**: Stable up to 4096.
-- **qwen-coder**: Stable up to 4096.
-- **llama-3.2 / qwen3 / gemma-3**: All encountered `ErrorOutOfDeviceMemory` (OOM) when attempting to load with `ngl=99` and `context=1024`.
+### ⚠ Important Discovery (FIT-EVIDENCE-RECONCILE-1)
 
-### Final Recommendations
-- Update `phi-4` and `qwen-coder` to `context: 4096`.
-- Keep others at `context: 1024` as a legacy/default value, **not** a verified safe setting.
-- `llama-3.2`, `qwen3`, and `gemma-3` OOM at ngl=99 even at context=1024. They require
-  reduced GPU offload (lower `ngl`) and a separate fit test to establish actual safe limits.
+The router reads `model-profiles.json` **at startup only** and caches profile
+data in memory. Changing the config file while the router is running has no
+effect on in-memory profile data. The test method above (step 2) writes changes
+to disk and calls `/backend/restart`, but the restart re-launches the backend
+using the **stale in-memory profile values**, not the updated config file.
+
+**Impact**: The PASS results for `phi-4` and `qwen-coder` may have used the
+originally intended context values (since those two profiles were already
+configured at ngl=99, context=4096 in the starting config and remained at
+those values). However, the evidence for these profiles is not methodologically
+sound — it was not produced with a restart-per-config-change procedure.
+
+**Correction**: `FIT-EVIDENCE-RECONCILE-1` retested phi-4 and qwen-coder using
+the correct restart-per-config-change method. The new evidence files are at:
+- `fixtures/windows-runtime-node/model-fit/evidence/phi-4-ngl99.json`
+- `fixtures/windows-runtime-node/model-fit/evidence/qwen-coder-ngl99.json`
+
+The OOM results for llama-3.2, qwen3, and gemma-3 are **not affected** by the
+stale-cache issue because:
+- The OOM at ngl=99 was consistent regardless of in-memory vs on-disk config.
+- These profiles were re-verified in `REDUCED-OFFLOAD-FIT-1` using the correct
+  restart-per-config-change method.
+
+### Future Use
+
+The `scripts/test-context-fit.ps1` script is **deprecated** because it uses
+the stale-cache approach. Use `scripts/test-reduced-offload-fit.ps1` (which
+correctly restarts the router between config changes) instead.
+
+### Results
+- **phi-4**: Reported stable up to 4096 (originally tested with stale-cache method).
+  - **CORRECTED in FIT-EVIDENCE-RECONCILE-1**: Confirmed stable at ngl=99, context=4096
+    using restart-per-config-change method. ✅
+- **qwen-coder**: Reported stable up to 4096 (originally tested with stale-cache method).
+  - **CORRECTED in FIT-EVIDENCE-RECONCILE-1**: Confirmed stable at ngl=99, context=4096
+    using restart-per-config-change method. ✅
+- **llama-3.2 / qwen3 / gemma-3**: All encountered `ErrorOutOfDeviceMemory` (OOM) when
+  attempting to load with `ngl=99` and `context=1024`. These OOM results are **not affected**
+  by the stale-cache issue (OOM happened consistently regardless of in-memory vs on-disk
+  config). These profiles were re-verified in `REDUCED-OFFLOAD-FIT-1` using the correct
+  restart-per-config-change method.
+
+### Final Recommendations (as of FIT-EVIDENCE-RECONCILE-1)
+- **phi-4**: `context: 4096`, `ngl: 99` — verified with corrected method.
+- **qwen-coder**: `context: 4096`, `ngl: 99` — verified with corrected method.
+- **llama-3.2 / qwen3 / gemma-3**: Reduced to `ngl: 80`, then `context: 4096` — verified
+  in REDUCED-OFFLOAD-FIT-1 with corrected method.
+- All 5 profiles now have methodologically sound evidence.
