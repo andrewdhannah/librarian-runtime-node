@@ -44,6 +44,9 @@ config/runtime-node.local.json
 *.exp
 *.lib
 
+# === Rust build artifacts ===
+target/
+
 # === Runtime build output ===
 runtime/bin/
 runtime/llama.cpp/llama-server.exe

@@ -1,0 +1,519 @@
+//! HTTP server — contract endpoints for the Rust router.
+//!
+//! Preserves the same endpoint names and response shapes as the Python router:
+//! - GET  /backend/status
+//! - GET  /backend/profiles
+//! - GET  /backend/health
+//! - GET  /health
+//! - POST /backend/select
+//! - POST /backend/stop
+//! - POST /backend/chat (internal) / POST /v1/chat/completions (OpenAI-compatible)
+//!
+//! Authority: advisory_only
+
+use crate::config::ProfileManager;
+use crate::evidence::EvidenceWriter;
+use crate::process::{BackendProcess, BackendState};
+use crate::refusal;
+use axum::{
+    extract::State,
+    http::StatusCode,
+    response::Json,
+    routing::{get, post},
+    Router,
+};
+use chrono::Utc;
+use serde::Deserialize;
+use serde_json::{json, Value};
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+// info used in evidence writes
+
+/// Shared application state.
+pub struct AppState {
+    pub profile_manager: ProfileManager,
+    pub backends: Mutex<HashMap<String, Arc<BackendProcess>>>,
+    pub evidence_writer: EvidenceWriter,
+    pub start_time: std::time::Instant,
+}
+
+// ============================================================================
+// Request/Response types
+// ============================================================================
+
+#[derive(Debug, Deserialize)]
+pub struct SelectRequest {
+    pub profile: String,
+    pub task_class: Option<String>,
+    pub context: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StopRequest {
+    pub profile: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChatRequest {
+    pub profile: String,
+    pub messages: Option<Vec<Value>>,
+    pub max_tokens: Option<u32>,
+    pub temperature: Option<f64>,
+    pub context: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct V1ChatRequest {
+    pub model: Option<String>,
+    pub messages: Option<Vec<Value>>,
+    pub max_tokens: Option<u32>,
+    pub temperature: Option<f64>,
+}
+
+// ============================================================================
+// GET /backend/status
+// ============================================================================
+
+async fn handle_status(State(state): State<Arc<AppState>>) -> Json<Value> {
+    let backends = state.backends.lock().await;
+    let mut profiles_status = json!({});
+    let mut active_profile: Option<String> = None;
+    let mut healthy_count = 0u32;
+
+    for (alias, bp) in backends.iter() {
+        let status = bp.get_status().await;
+        if status.state == "healthy" {
+            healthy_count += 1;
+            if active_profile.is_none() {
+                active_profile = Some(alias.clone());
+            }
+        }
+        profiles_status[alias] = serde_json::to_value(&status).unwrap_or_default();
+    }
+
+    let overall = if healthy_count > 0 { "ok" } else { "degraded" };
+
+    let response = json!({
+        "status": overall,
+        "active_profile": active_profile,
+        "profiles_registered": state.profile_manager.len(),
+        "runtimes_alive": healthy_count,
+        "uptime_seconds": state.start_time.elapsed().as_secs(),
+        "authority": "advisory_only",
+        "profiles": profiles_status,
+    });
+
+    state.evidence_writer.write("status.json", &response);
+    Json(response)
+}
+
+// ============================================================================
+// GET /backend/profiles
+// ============================================================================
+
+async fn handle_profiles(State(state): State<Arc<AppState>>) -> Json<Value> {
+    let response = json!({
+        "profiles": state.profile_manager.list_all(),
+        "authority": "advisory_only",
+    });
+    state.evidence_writer.write("profiles.json", &response);
+    Json(response)
+}
+
+// ============================================================================
+// GET /backend/health
+// ============================================================================
+
+async fn handle_health(State(state): State<Arc<AppState>>) -> Json<Value> {
+    let backends = state.backends.lock().await;
+    let mut profiles_health = json!({});
+    let mut all_healthy = true;
+    let mut active_profile: Option<String> = None;
+
+    for (alias, bp) in backends.iter() {
+        let s = bp.get_state().await;
+        let h = bp.check_health().await;
+        let health_status = if s == BackendState::Healthy { "ok" } else { "degraded" };
+        if !h { all_healthy = false; }
+        if s == BackendState::Healthy && active_profile.is_none() {
+            active_profile = Some(alias.clone());
+        }
+        profiles_health[alias] = json!({
+            "status": health_status,
+            "state": s.as_str(),
+            "identity_verified": s == BackendState::Healthy,
+            "port": bp.profile.port,
+        });
+    }
+
+    let response = json!({
+        "status": if all_healthy { "ok" } else { "degraded" },
+        "active_profile": active_profile,
+        "profiles": profiles_health,
+        "authority": "advisory_only",
+    });
+    state.evidence_writer.write("health.json", &response);
+    Json(response)
+}
+
+// ============================================================================
+// GET /health (legacy)
+// ============================================================================
+
+async fn handle_health_legacy(State(state): State<Arc<AppState>>) -> Json<Value> {
+    // Get backend aliases without holding the lock across await
+    let aliases: Vec<String> = {
+        let backends = state.backends.lock().await;
+        backends.keys().cloned().collect()
+    };
+
+    // Check each backend with brief health poll
+    let mut active: Option<String> = None;
+    for alias in &aliases {
+        let bp = {
+            let backends = state.backends.lock().await;
+            backends.get(alias).cloned()
+        };
+        if let Some(bp) = bp {
+            if bp.check_health().await && bp.get_state().await.is_healthy() {
+                active = Some(alias.clone());
+                break;
+            }
+        }
+    }
+
+    let response = json!({
+        "status": if active.is_some() { "ok" } else { "degraded" },
+        "router": "ok",
+        "active_profile": active,
+        "authority": "advisory_only",
+    });
+    Json(response)
+}
+
+// ============================================================================
+// POST /backend/select
+// ============================================================================
+
+async fn handle_select(
+    State(state): State<Arc<AppState>>,
+    axum::Json(body): axum::Json<SelectRequest>,
+) -> (StatusCode, Json<Value>) {
+    let alias = &body.profile;
+    let profile = state.profile_manager.get(alias);
+
+    // Check refusal conditions
+    if let Some(refusal) = refusal::check_select(
+        alias,
+        body.task_class.as_deref(),
+        profile.is_some(),
+        profile.map(|p| p.verified_status == "verified").unwrap_or(false),
+        false, // runtime_failed is checked below
+    ) {
+        // Handle task_class case specially
+        if refusal.get("reason") == Some(&json!("task_class_check_needed")) {
+            // Check task classes from the profile
+            if let Some(p) = profile {
+                if let Some(ref tc) = body.task_class {
+                    if !p.task_classes.contains(tc) {
+                        let resp = json!({
+                            "status": "refused",
+                            "reason": "unknown_profile",
+                            "detail": format!(
+                                "Task class '{}' not declared for profile '{}'. Declared: {:?}",
+                                tc, alias, p.task_classes
+                            ),
+                            "authority": "advisory_only",
+                            "timestamp": Utc::now().to_rfc3339(),
+                        });
+                        state.evidence_writer.write("select-invalid.json", &resp);
+                        return (StatusCode::FORBIDDEN, Json(resp));
+                    }
+                }
+            }
+        } else {
+            state.evidence_writer.write("select-invalid.json", &refusal);
+            return (StatusCode::FORBIDDEN, Json(refusal));
+        }
+    }
+
+    // Get or create backend process
+    let bp = {
+        let mut backends = state.backends.lock().await;
+        if let Some(existing) = backends.get(alias) {
+            existing.clone()
+        } else if let Some(profile_data) = state.profile_manager.get(alias) {
+            let bp = Arc::new(BackendProcess::new(profile_data.clone()));
+            backends.insert(alias.clone(), bp.clone());
+            bp
+        } else {
+            let resp = json!({
+                "status": "refused",
+                "reason": "unknown_profile",
+                "detail": format!("No profile registered with alias '{}'", alias),
+                "authority": "advisory_only",
+                "timestamp": Utc::now().to_rfc3339(),
+            });
+            state.evidence_writer.write("select-invalid.json", &resp);
+            return (StatusCode::FORBIDDEN, Json(resp));
+        }
+    };
+
+    // Start the backend if not running
+    let current_state = bp.get_state().await;
+    if current_state == BackendState::Stopped || current_state == BackendState::Failed {
+        if let Err(e) = bp.start().await {
+            let resp = json!({
+                "status": "refused",
+                "reason": "runtime_unhealthy",
+                "detail": format!("Backend launch failed for '{}': {}", alias, e),
+                "authority": "advisory_only",
+            });
+            state.evidence_writer.write("select-invalid.json", &resp);
+            return (StatusCode::SERVICE_UNAVAILABLE, Json(resp));
+        }
+    }
+
+    // Brief wait for health if still starting
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while std::time::Instant::now() < deadline && !bp.get_state().await.is_healthy() {
+        bp.check_health().await;
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    }
+
+    let port = state.profile_manager.get(alias).map(|p| p.port).unwrap_or(0);
+    let response = json!({
+        "status": "selected",
+        "profile": alias,
+        "port": port,
+        "authority": "advisory_only",
+        "task_class": body.task_class,
+    });
+    state.evidence_writer.write("select-valid.json", &response);
+    (StatusCode::OK, Json(response))
+}
+
+// ============================================================================
+// POST /backend/stop
+// ============================================================================
+
+async fn handle_stop(
+    State(state): State<Arc<AppState>>,
+    axum::Json(body): axum::Json<StopRequest>,
+) -> (StatusCode, Json<Value>) {
+    let backends = state.backends.lock().await;
+
+    let aliases_to_stop: Vec<String> = if let Some(ref profile) = body.profile {
+        vec![profile.clone()]
+    } else {
+        backends.keys().cloned().collect()
+    };
+
+    if aliases_to_stop.is_empty() {
+        let resp = json!({
+            "status": "error",
+            "detail": "No backends running",
+        });
+        return (StatusCode::BAD_REQUEST, Json(resp));
+    }
+
+    let mut stopped = Vec::new();
+    let mut not_found = Vec::new();
+
+    for alias in &aliases_to_stop {
+        if let Some(bp) = backends.get(alias) {
+            bp.stop().await;
+            stopped.push(alias.clone());
+        } else {
+            not_found.push(alias.clone());
+        }
+    }
+
+    let response = json!({
+        "status": "stopped",
+        "stopped": stopped,
+        "not_found": not_found,
+        "authority": "advisory_only",
+    });
+    state.evidence_writer.write("stop-result.json", &response);
+    (StatusCode::OK, Json(response))
+}
+
+// ============================================================================
+// POST /backend/chat (internal router endpoint)
+// ============================================================================
+
+async fn handle_chat(
+    State(state): State<Arc<AppState>>,
+    axum::Json(body): axum::Json<ChatRequest>,
+) -> (StatusCode, Json<Value>) {
+    let alias = &body.profile;
+    let messages = body.messages.unwrap_or_default();
+
+    if alias.is_empty() {
+        let resp = json!({"status": "error", "error": "Missing 'profile' field"});
+        return (StatusCode::BAD_REQUEST, Json(resp));
+    }
+
+    if messages.is_empty() {
+        let resp = json!({"status": "error", "error": "Missing 'messages' field"});
+        return (StatusCode::BAD_REQUEST, Json(resp));
+    }
+
+    let profile = state.profile_manager.get(alias);
+    let verified_context = profile.map(|p| p.context).unwrap_or(1024);
+
+    // Check refusal
+    let is_healthy = {
+        let backends = state.backends.lock().await;
+        match backends.get(alias) {
+            Some(bp) => bp.get_state().await.is_healthy(),
+            None => false,
+        }
+    };
+
+    if let Some(refusal) = refusal::check_chat(
+        alias,
+        &messages,
+        body.context,
+        verified_context,
+        profile.is_some(),
+        is_healthy,
+    ) {
+        state.evidence_writer.write("chat-refusal.json", &refusal);
+        return (StatusCode::FORBIDDEN, Json(refusal));
+    }
+
+    // Proxy to backend
+    let max_tokens = body.max_tokens.unwrap_or(256);
+    let temperature = body.temperature.unwrap_or(0.7);
+
+    let bp = {
+        let backends = state.backends.lock().await;
+        backends.get(alias).cloned()
+    };
+
+    match bp {
+        Some(process) => {
+            match process.proxy_chat(&messages, max_tokens, temperature).await {
+                Ok(backend_response) => {
+                    // Extract content from OpenAI-compatible response
+                    let choices = backend_response.get("choices").and_then(|c| c.as_array());
+                    let content = choices
+                        .and_then(|c| c.first())
+                        .and_then(|c| c.get("message"))
+                        .and_then(|m| m.get("content"))
+                        .and_then(|c| c.as_str())
+                        .unwrap_or("");
+                    let finish_reason = choices
+                        .and_then(|c| c.first())
+                        .and_then(|c| c.get("finish_reason"))
+                        .and_then(|c| c.as_str())
+                        .unwrap_or("stop");
+
+                    let response = json!({
+                        "status": "ok",
+                        "content": content,
+                        "finish_reason": finish_reason,
+                        "profile": alias,
+                        "authority": "advisory_only",
+                    });
+                    state.evidence_writer.write("chat-valid.json", &response);
+                    (StatusCode::OK, Json(response))
+                }
+                Err(e) => {
+                    let resp = json!({
+                        "status": "error",
+                        "error": e,
+                        "profile": alias,
+                        "authority": "advisory_only",
+                    });
+                    (StatusCode::BAD_GATEWAY, Json(resp))
+                }
+            }
+        }
+        None => {
+            let resp = json!({
+                "status": "refused",
+                "reason": "runtime_unhealthy",
+                "detail": format!("No runtime for profile '{}'. Select it first.", alias),
+                "authority": "advisory_only",
+            });
+            (StatusCode::SERVICE_UNAVAILABLE, Json(resp))
+        }
+    }
+}
+
+// ============================================================================
+// POST /v1/chat/completions (OpenAI-compatible endpoint)
+// ============================================================================
+
+async fn handle_v1_chat(
+    State(state): State<Arc<AppState>>,
+    axum::Json(body): axum::Json<V1ChatRequest>,
+) -> (StatusCode, Json<Value>) {
+    let model = body.model.clone().unwrap_or_default();
+
+    // Find the target backend process
+    let target_bp: Option<Arc<BackendProcess>> = {
+        let backends = state.backends.lock().await;
+
+        if !model.is_empty() {
+            // Try exact match with model alias
+            backends.get(&model).cloned()
+        } else {
+            // Return the first backend (any)
+            backends.values().next().cloned()
+        }
+    };
+
+    let process = match target_bp {
+        Some(p) => p,
+        None => {
+            let resp = json!({
+                "error": "No active backend. Use /backend/select first.",
+                "authority": "advisory_only",
+            });
+            return (StatusCode::SERVICE_UNAVAILABLE, Json(resp));
+        }
+    };
+
+    let messages = body.messages.unwrap_or_default();
+    if messages.is_empty() {
+        let resp = json!({"error": "Missing 'messages' field"});
+        return (StatusCode::BAD_REQUEST, Json(resp));
+    }
+
+    let max_tokens = body.max_tokens.unwrap_or(256);
+    let temperature = body.temperature.unwrap_or(0.7);
+
+    match process.proxy_chat(&messages, max_tokens, temperature).await {
+        Ok(backend_response) => (StatusCode::OK, Json(backend_response)),
+        Err(e) => {
+            let resp = json!({"error": e});
+            (StatusCode::BAD_GATEWAY, Json(resp))
+        }
+    }
+}
+
+// ============================================================================
+// Router construction
+// ============================================================================
+
+/// Build the axum Router with all contract endpoints.
+pub fn build_router(state: Arc<AppState>) -> Router {
+    Router::new()
+        .route("/backend/status", get(handle_status))
+        .route("/backend/profiles", get(handle_profiles))
+        .route("/backend/health", get(handle_health))
+        .route("/health", get(handle_health_legacy))
+        .route("/backend/select", post(handle_select))
+        .route("/backend/stop", post(handle_stop))
+        .route("/backend/chat", post(handle_chat))
+        .route("/v1/chat/completions", post(handle_v1_chat))
+        .layer(
+            tower_http::cors::CorsLayer::permissive()
+        )
+        .with_state(state)
+}
