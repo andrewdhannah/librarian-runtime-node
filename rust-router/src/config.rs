@@ -11,8 +11,12 @@ use std::path::PathBuf;
 /// Router configuration with environment variable overrides.
 #[derive(Debug, Clone)]
 pub struct RouterConfig {
+    pub router_host: String,
     pub router_port: u16,
     pub backend_port_base: u16,
+    pub auth_token: Option<String>,
+    pub require_auth: bool,
+    pub max_body_bytes: usize,
     pub profile_config_path: Option<PathBuf>,
     pub backend_binary_path: Option<PathBuf>,
     pub evidence_path: Option<PathBuf>,
@@ -25,6 +29,7 @@ impl RouterConfig {
     /// Load configuration from environment variables with defaults.
     pub fn from_env() -> Self {
         RouterConfig {
+            router_host: std::env::var("ROUTER_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()),
             router_port: std::env::var("ROUTER_PORT")
                 .ok()
                 .and_then(|v| v.parse().ok())
@@ -33,6 +38,14 @@ impl RouterConfig {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(9120),
+            auth_token: std::env::var("ROUTER_AUTH_TOKEN").ok(),
+            require_auth: std::env::var("ROUTER_REQUIRE_AUTH")
+                .map(|v| v == "true" || v == "1")
+                .unwrap_or(false),
+            max_body_bytes: std::env::var("ROUTER_MAX_BODY_BYTES")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(10 * 1024 * 1024),
             profile_config_path: std::env::var("PROFILE_CONFIG_PATH").ok().map(PathBuf::from),
             backend_binary_path: std::env::var("BACKEND_BINARY_PATH").ok().map(PathBuf::from),
             evidence_path: std::env::var("EVIDENCE_PATH").ok().map(PathBuf::from),

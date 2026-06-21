@@ -6,16 +6,11 @@
 //!     cargo run --release -- --port 9130
 //!     cargo run --release -- --port 9130 --profiles <path-to-model-profiles.json>
 //!     ROUTER_PORT=9130 cargo run --release
+//! 
 
-mod config;
-mod evidence;
-mod process;
-mod refusal;
-mod server;
-
-use crate::config::{ProfileManager, RouterConfig};
-use crate::evidence::EvidenceWriter;
-use crate::server::{build_router, AppState, start_health_poller, stop_health_poller};
+use rust_router::config::{ProfileManager, RouterConfig};
+use rust_router::evidence::EvidenceWriter;
+use rust_router::server::{build_router, AppState, start_health_poller, stop_health_poller};
 use clap::Parser;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -30,9 +25,13 @@ const DEFAULT_PORT: u16 = 9130;
 #[derive(Parser, Debug)]
 #[command(name = "rust-router", version, about = "Hardened Rust router core for librarian-runtime-node")]
 struct Args {
+    /// Router host.
+    #[arg(long)]
+    host: Option<String>,
+
     /// Router HTTP port.
-    #[arg(long, default_value_t = DEFAULT_PORT)]
-    port: u16,
+    #[arg(long)]
+    port: Option<u16>,
 
     /// Path to model-profiles.json (overrides default sources).
     #[arg(long)]
@@ -99,7 +98,7 @@ async fn main() {
         "router-startup.json",
         &serde_json::json!({
             "status": "started",
-            "port": args.port,
+            "port": args.port.unwrap_or(DEFAULT_PORT),
             "profiles_loaded": state.profile_manager.len(),
             "profiles": state.profile_manager.aliases(),
             "authority": "advisory_only",
@@ -114,7 +113,9 @@ async fn main() {
     let app = build_router(state.clone());
 
     // Bind and serve
-    let addr = format!("0.0.0.0:{}", args.port);
+    let host = args.host.unwrap_or_else(|| config.router_host.clone());
+    let port = args.port.unwrap_or(config.router_port);
+    let addr = format!("{}:{}", host, port);
     let sep = "=".repeat(60);
     info!("{}", sep);
     info!("rust-router v0.1 (ROUTER-RUST-HARDEN-1)");

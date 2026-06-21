@@ -16,11 +16,13 @@ use crate::evidence::EvidenceWriter;
 use crate::process::{BackendProcess, BackendState};
 use crate::refusal;
 use axum::{
-    extract::State,
-    http::StatusCode,
+    extract::{State, DefaultBodyLimit},
+    http::{header, StatusCode},
+    middleware::{self, Next},
     response::Json,
     routing::{get, post},
     Router,
+    extract::Request,
 };
 use chrono::Utc;
 use serde::Deserialize;
@@ -80,6 +82,34 @@ pub struct V1ChatRequest {
     pub messages: Option<Vec<Value>>,
     pub max_tokens: Option<u32>,
     pub temperature: Option<f64>,
+}
+
+// ============================================================================
+// Middleware
+// ============================================================================
+
+async fn auth_middleware(
+    State(state): State<Arc<AppState>>,
+    req: Request,
+    next: Next,
+) -> Result<axum::response::Response, StatusCode> {
+    if state.config.require_auth {
+        let auth_header = req.headers()
+            .get(header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok());
+
+        match auth_header {
+            Some(token) if Some(token) == state.config.auth_token.as_ref().map(|x| x.as_str()) => {
+                Ok(next.run(req).await)
+            }
+            _ => {
+                warn!("Unauthorized request attempt");
+                Err(StatusCode::UNAUTHORIZED)
+            }
+        }
+    } else {
+        Ok(next.run(req).await)
+    }
 }
 
 // ============================================================================
@@ -635,6 +665,8 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/backend/chat", post(handle_chat))
         .route("/v1/chat/completions", post(handle_v1_chat))
         .route("/v1/models", get(handle_v1_models))
+        .layer(middleware::from_fn_with_state(state.clone(), auth_middleware))
+        .layer(DefaultBodyLimit::max(state.config.max_body_bytes))
         .layer(
             tower_http::cors::CorsLayer::permissive()
         )
