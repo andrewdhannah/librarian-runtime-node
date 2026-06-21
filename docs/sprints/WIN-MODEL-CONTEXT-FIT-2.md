@@ -19,8 +19,9 @@ For each profile, test context sizes: `1024` (Baseline), `2048`, `3072`, `4096`.
 | qwen3 | OOM | OOM | OOM | OOM | 1024* |
 | gemma-3 | OOM | OOM | OOM | OOM | 1024* |
 
-\* Baseline 1024 was previously verified, but current tests show OOM at ngl=99. 
-Safe cap is maintained at 1024 as the absolute upper bound for stability, though actual stability at ngl=99 is currently unstable for these models.
+\* Baseline 1024 is a **legacy/default value**, not a verified safe cap at ngl=99. 
+These models OOM'd at load even at context=1024. A reduced-offload fit test 
+(e.g., REDUCED-OFFLOAD-FIT-1) is needed to determine actual safe operating points.
 
 ### Test Method
 1. Start `LibrarianRunTimeNode` (or manual router for debugging).
@@ -38,4 +39,6 @@ Safe cap is maintained at 1024 as the absolute upper bound for stability, though
 
 ### Final Recommendations
 - Update `phi-4` and `qwen-coder` to `context: 4096`.
-- Keep others at `context: 1024` but note that `ngl=99` is aggressive for these models on 4GB VRAM.
+- Keep others at `context: 1024` as a legacy/default value, **not** a verified safe setting.
+- `llama-3.2`, `qwen3`, and `gemma-3` OOM at ngl=99 even at context=1024. They require
+  reduced GPU offload (lower `ngl`) and a separate fit test to establish actual safe limits.

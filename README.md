@@ -54,9 +54,20 @@ Five model profiles are registered and verified at `ngl=99`, `context=1024`:
 | `qwen3` | 9123 | 2.33 GB | general_advisory, reasoning |
 | `gemma-3` | 9124 | 2.32 GB | general_advisory |
 
-**Current tested setting:** `ngl=99`, `context=1024` — the RX 570 4 GB runs
-all tested models at full GPU offload within this context. Larger context
-sizes require explicit fit testing (see WIN-MODEL-FIT-1).
+**Current profile settings:**
+
+| Profile | Context | ngl | Status |
+|---------|---------|-----|--------|
+| `phi-4` | 4096 | 99 | Verified safe |
+| `qwen-coder` | 4096 | 99 | Verified safe |
+| `llama-3.2` | 1024 | 99 | **OOM at load** — unstable at ngl=99 |
+| `qwen3` | 1024 | 99 | **OOM at load** — unstable at ngl=99 |
+| `gemma-3` | 1024 | 99 | **OOM at load** — unstable at ngl=99 |
+
+For the three OOM profiles, `context: 1024` is a **legacy/default value**,
+not a verified safe value at ngl=99. These profiles require reduced GPU
+offload (lower `ngl`) to fit on the RX 570 4 GB. Larger context sizes
+for verified profiles require explicit fit testing (see WIN-MODEL-CONTEXT-FIT-2).
 
 ---
 
