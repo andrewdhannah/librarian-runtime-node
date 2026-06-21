@@ -1,8 +1,8 @@
 {
     "_meta": {
         "description": "All 5 verified model profiles for Big Pickle router",
-        "generated": "2026-06-19",
-        "source": "WIN-MODEL-FIT-1 matrix (25/25 cells PASS)",
+        "generated": "2026-06-20",
+        "source": "WIN-MODEL-CONTEXT-FIT-2 matrix",
         "authority": "advisory_only"
     },
     "defaults": {
@@ -21,14 +21,14 @@
             "gguf_size_gb": 2.32,
             "backend": "vulkan",
             "ngl": 99,
-            "context": 1024,
+            "context": 4096,
             "port": 9120,
-            "launch_command": "llama-server.exe -m \"G:\\llama.cpp\\models\\microsoft_Phi-4-mini-instruct-Q4_K_M.gguf\" -p 9120 -c 1024 -ngl 99 -n 512 --alias \"phi-4\"",
+            "launch_command": "llama-server.exe -m \"G:\\llama.cpp\\models\\microsoft_Phi-4-mini-instruct-Q4_K_M.gguf\" -p 9120 -c 4096 -ngl 99 -n 512 --alias \"phi-4\"",
             "task_classes": ["general_advisory", "summarization_advisory"],
             "verified_status": "verified",
             "evidence_path": "fixtures/windows-runtime-node/model-fit/evidence/phi-4-ngl99.json",
             "authority_status": "advisory_only",
-            "limitations": "Context >1024 at ngl=99 OOM. Q4_K_M quantization.",
+            "limitations": "Safe up to 4096 context at ngl=99.",
             "known_behavior": "Clean output, no preamble or reasoning traces.",
             "test_cells": ["phi-4 ngl=20", "phi-4 ngl=40", "phi-4 ngl=60", "phi-4 ngl=80", "phi-4 ngl=99"]
         },
@@ -39,14 +39,14 @@
             "gguf_size_gb": 1.76,
             "backend": "vulkan",
             "ngl": 99,
-            "context": 1024,
+            "context": 4096,
             "port": 9121,
-            "launch_command": "llama-server.exe -m \"G:\\llama.cpp\\models\\qwen2.5-coder-1.5b-instruct-q8_0.gguf\" -p 9121 -c 1024 -ngl 99 -n 512 --alias \"qwen-coder\"",
+            "launch_command": "llama-server.exe -m \"G:\\llama.cpp\\models\\qwen2.5-coder-1.5b-instruct-q8_0.gguf\" -p 9121 -c 4096 -ngl 99 -n 512 --alias \"qwen-coder\"",
             "task_classes": ["code_advisory", "fallback_small_model"],
             "verified_status": "verified",
             "evidence_path": "fixtures/windows-runtime-node/model-fit/evidence/qwen-coder-ngl99.json",
             "authority_status": "advisory_only",
-            "limitations": "1.5B params; best for code tasks. Smaller reasoning capacity than phi-4.",
+            "limitations": "1.5B params; best for code tasks. Safe up to 4096 context at ngl=99.",
             "known_behavior": "Clean output. Can handle larger context at ngl=99 due to small model size.",
             "test_cells": ["qwen-coder ngl=20", "qwen-coder ngl=40", "qwen-coder ngl=60", "qwen-coder ngl=80", "qwen-coder ngl=99"]
         },

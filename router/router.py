@@ -187,8 +187,8 @@ class ProcessManager:
             try:
                 self.process = subprocess.Popen(
                     cmd,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
+                    stdout=open(f"backend_{self.alias}.log", "w"),
+                    stderr=subprocess.STDOUT,
                     creationflags=subprocess.CREATE_NO_WINDOW,
                 )
                 self.pid = self.process.pid
