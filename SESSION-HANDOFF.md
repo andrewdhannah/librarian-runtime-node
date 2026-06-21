@@ -1,29 +1,42 @@
 # Session Handoff — Librarian Runtime Node
 
 > Quick summary for an agent or human picking up where the last session left off.
-> Root: `G:\openwork\librarian-runtime-node\`
-> Updated: 2026-06-19
+> Root: `G:\OpenWork\librarian-runtime-node\`
+> Updated: 2026-06-20
 
 ## Repo Identity
 
 - **Project:** Librarian Runtime Node
-- **Local path:** `G:\openwork\librarian-runtime-node\`
+- **Local path:** `G:\OpenWork\librarian-runtime-node\`
 - **Remote:** `https://github.com/andrewdhannah/librarian-runtime-node.git`
 - **Description:** Local model runtime custody node for The Librarian.
 
 ## Current Status
 
-**WIN-ROUTER-IMPL-1: COMPLETE / ROUTING READY**
+**8 completed sprints — foundation proven, roadmap established.**
 
-The Python router is the current behavioral reference implementation, verified
-across 6 endpoint types × 8 verification cases. Two runtime defects were found
-and fixed: a deadlock in `_check_health()` and a blocking-risk from single-threaded
-`HTTPServer`. Full evidence at `fixtures/windows-runtime-node/router-impl/`.
+### Completed Sprints (in order)
 
-**RUNTIME-REPO-INIT-1: COMPLETE** (this session)
+| # | Sprint | Result |
+|---|--------|--------|
+| 1 | RUNTIME-REPO-INIT-1 | Repo initialized |
+| 2 | WIN-SERVICE-LIFECYCLE-1 | Windows service + router lifecycle proved |
+| 3 | WIN-BACKEND-SERVICE-PROOF-1 | Service-started router launches backend, cleans up |
+| 4 | WIN-ROUTER-HARDEN-1 | Router endpoints + failure cases verified |
+| 5 | WIN-MODEL-CONTEXT-FIT-2 | RX 570 context fit tested |
+| 6 | ROUTER-PORTABILITY-1 | Portable Router contract documented |
+| 7 | REDUCED-OFFLOAD-FIT-1 | All 5 profiles verified at 4096 context on RX 570 |
+| 8 | **WINDOWS-PC-PLAN-UPDATE-1** | Roadmap, startup sequence, sprint index established |
 
-The runtime node now has its own Git repository, README, architecture docs,
-and sprint planning structure.
+### Profile Verification Summary (RX 570 4 GB)
+
+| Profile | Context | ngl | Status |
+|---------|---------|-----|--------|
+| phi-4 | 4096 | 99 | Verified safe |
+| qwen-coder | 4096 | 99 | Verified safe |
+| llama-3.2 | 4096 | 80 | Verified safe (reduced offload) |
+| qwen3 | 4096 | 80 | Verified safe (reduced offload) |
+| gemma-3 | 4096 | 80 | Verified safe (reduced offload) |
 
 ## Key Files
 
@@ -33,56 +46,46 @@ and sprint planning structure.
 | `config/model-profiles.json` | Deployed profile config (5 profiles) |
 | `config/runtime-node.example.json` | Template for local config |
 | `config/runtime-node.local.json` | **Local config — gitignored** |
+| `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md` | Three-layer Windows PC sprint roadmap |
+| `docs/operations/WINDOWS-AGENT-STARTUP-SEQUENCE.md` | Mandatory agent startup checklist |
 | `docs/architecture/RUNTIME-NODE-ARCHITECTURE.md` | Component architecture and contracts |
-| `docs/sprints/` | Sprint records |
+| `docs/architecture/ROUTER-PORTABILITY-CONTRACT.md` | Portable Router contract definition |
+| `docs/sprints/` | Sprint records (8 completed) |
+| `scripts/test-reduced-offload-fit.ps1` | Reusable reduced-offload test harness |
 | `fixtures/windows-runtime-node/router-impl/` | Verified endpoint evidence (JSON fixtures) |
 | `.gitignore` | Exclusion policy for models, logs, secrets |
 
-## Known Issues
-
-1. **Orphan backend process.** PID 948 (`llama-server.exe`) was left running
-   after prior restart testing. This is a known lifecycle-custody gap and a
-   target for WIN-SERVICE-LIFECYCLE-1.
-
-2. **SSH key not configured.** The remote uses HTTPS. Push requires
-   authentication credentials.
-
 ## Next Sprint
 
-### WIN-SERVICE-LIFECYCLE-1 — Windows Router Service Lifecycle (startup only)
+### WIN-RUNTIME-PROFILES-CLEANUP-1 — Clean up profile config with verified data
 
-**Boundary:** Do not install NSSM, do not modify Windows services, do not
-change router behavior. This session inspects, verifies, and reports only.
+**Purpose:** Update `config/model-profiles.json` to reflect verified safe routing
+reality from REDUCED-OFFLOAD-FIT-1.
 
-**Startup prompt:**
-1. Inspect current repo state, docs, service feasibility, and Windows runtime paths.
-2. Verify working tree, HEAD, existing evidence, and router health.
-3. Scope the smallest safe service lifecycle sprint.
-4. Do not install NSSM, modify service state, or change files until the
-   startup report is complete and owner-approved.
+**Key tasks:**
+- Mark phi-4 and qwen-coder as preferred/stable RX 570 profiles.
+- Mark llama-3.2, qwen3, and gemma-3 with verified ngl=80, context=4096.
+- Add `verified_context`, `verified_ngl`, `stability`, `requires_reduced_offload` fields.
+- Avoid claiming unverified safety.
+- Verify router still loads all profiles and endpoint matrix passes.
 
-**Required inspections:**
-- NSSM availability and feasibility for Python script hosting
-- Windows `sc.exe` service creation options
-- Child process group handling on Windows
-- Config path stability under service-level execution
-- Orphan process prevention strategy
+**Alternative:** WIN-RUNTIME-OPERATIONS-1 (operator toolkit scripts) could be
+done first if tooling is more urgent.
 
-## Open Structural Question
+## Known Issues
 
-Before WIN-SERVICE-LIFECYCLE-1 mutates anything, the next session should
-report on the runtime-repo relationship:
+1. **SSH key not configured.** The remote uses HTTPS. Push requires
+   authentication credentials.
 
-- **Option A:** Independent repo (current choice)
-- **Option B:** Subfolder/submodule under the main Librarian repo
-- **Option C:** Runtime-only folder with canonical docs mirrored from Mac repo
-
-This was resolved as Option A for RUNTIME-REPO-INIT-1. The next session
-should confirm or recommend a change.
+2. **Swift test cannot run on Windows.** The Swift toolchain is unavailable.
+   Any WIN-RUNTIME-INTEGRATION-1 validation was manual audit only.
 
 ## Boundaries
 
-- No NSSM install or service mutation without owner approval.
+- No NSSM install or service mutation without elevation and owner approval.
 - No model downloads.
 - No GGUF/safetensors/LLM binary files committed.
-- WIN-SERVICE-LIFECYCLE-1 is not complete — do not mark it as such.
+- `LibrarianRunTimeNode` remains Manual startup unless explicitly changed.
+- Do not kill unrelated processes.
+- Always run the [startup sequence](docs/operations/WINDOWS-AGENT-STARTUP-SEQUENCE.md)
+  before modifying files.

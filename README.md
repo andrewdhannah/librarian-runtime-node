@@ -11,15 +11,15 @@ a strict advisory-only authority boundary.
 
 ## Current Status
 
-**WIN-ROUTER-IMPL-1 — COMPLETE / ROUTING READY**
+**7 completed sprints — runtime-node foundation proven. See the [Windows PC Sprint Roadmap](docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md) for the full plan.**
 
-The Python router is the current behavioral reference implementation. It has
-been verified across all 6 endpoint types and 8 verification cases. Two
-critical runtime defects were found and fixed during implementation testing:
-a deadlock in the health-check loop and a blocking-risk from single-threaded
-request handling.
+The Python router is the current behavioral reference implementation, verified
+across 6 endpoint types and 8 verification cases. Full details in sprint records
+under `docs/sprints/`.
 
-Current verified endpoints:
+Last sealed sprint: **REDUCED-OFFLOAD-FIT-1** — all 5 profiles verified at full
+4096 context on RX 570 4 GB (phi-4 and qwen-coder at ngl=99; llama-3.2, qwen3,
+and gemma-3 at ngl=80).
 
 | Endpoint | Method | Behavior |
 |----------|--------|----------|
@@ -40,11 +40,17 @@ Current verified endpoints:
 
 > Python may prove the behavior. Rust should eventually own the production custody daemon.
 
+### Agent Startup Sequence
+
+Agents working on the Windows PC lane **must** follow the
+[Windows Agent Startup Sequence](docs/operations/WINDOWS-AGENT-STARTUP-SEQUENCE.md)
+before modifying any files. This matches the inspection discipline used by Mac agents.
+
 ---
 
 ## Runtime Profiles
 
-Five model profiles are registered and verified at `ngl=99`, `context=1024`:
+Five model profiles are registered with per-profile ngl and context settings:
 
 | Profile | Port | Size | Task Classes |
 |---------|------|------|-------------|
@@ -56,18 +62,19 @@ Five model profiles are registered and verified at `ngl=99`, `context=1024`:
 
 **Current profile settings:**
 
-| Profile | Context | ngl | Status |
-|---------|---------|-----|--------|
-| `phi-4` | 4096 | 99 | Verified safe |
-| `qwen-coder` | 4096 | 99 | Verified safe |
-| `llama-3.2` | 1024 | 99 | **OOM at load** — unstable at ngl=99 |
-| `qwen3` | 1024 | 99 | **OOM at load** — unstable at ngl=99 |
-| `gemma-3` | 1024 | 99 | **OOM at load** — unstable at ngl=99 |
+| Profile | Context | ngl | Status | Sprint |
+|---------|---------|-----|--------|--------|
+| `phi-4` | 4096 | 99 | Verified safe | WIN-MODEL-CONTEXT-FIT-2 |
+| `qwen-coder` | 4096 | 99 | Verified safe | WIN-MODEL-CONTEXT-FIT-2 |
+| `llama-3.2` | 4096 | **80** | Verified safe at ngl=80 | REDUCED-OFFLOAD-FIT-1 |
+| `qwen3` | 4096 | **80** | Verified safe at ngl=80 | REDUCED-OFFLOAD-FIT-1 |
+| `gemma-3` | 4096 | **80** | Verified safe at ngl=80 | REDUCED-OFFLOAD-FIT-1 |
 
-For the three OOM profiles, `context: 1024` is a **legacy/default value**,
-not a verified safe value at ngl=99. These profiles require reduced GPU
-offload (lower `ngl`) to fit on the RX 570 4 GB. Larger context sizes
-for verified profiles require explicit fit testing (see WIN-MODEL-CONTEXT-FIT-2).
+All 5 profiles are now verified at **4096 context** on the RX 570 4 GB.
+Phi-4 and qwen-coder run at full GPU offload (ngl=99). Llama-3.2, qwen3, and
+gemma-3 require reduced GPU offload (ngl=80) to fit on this GPU. See
+[REDUCED-OFFLOAD-FIT-1](docs/sprints/REDUCED-OFFLOAD-FIT-1.md) for the
+complete test matrix and evidence.
 
 ---
 
@@ -106,12 +113,16 @@ for verified profiles require explicit fit testing (see WIN-MODEL-CONTEXT-FIT-2)
 
 ## Roadmap
 
-| Phase | Sprint | Scope | Status |
-|-------|--------|-------|--------|
-| 1 | WIN-SERVICE-LIFECYCLE-1 | Windows service lifecycle (NSSM, auto-start, process custody) | 🡆 NEXT |
-| 2 | WIN-ROUTER-HARDEN-1 | Python contract hardening (logging, timeouts, validation, regression) | Planned |
-| 3 | WIN-ROUTER-RUST-1 | Rust reimplementation at behavioral parity with Python reference | Proposed |
-| 4 | WIN-ROUTER-RUST-SERVICE-1 | Rust router as service-hosted default; Python retained as fallback | Proposed |
+See the **[Windows PC Sprint Roadmap](docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md)**
+for the full three-layer plan:
+
+| Layer | Focus | Status |
+|-------|-------|--------|
+| Layer 1 — Runtime Node Reliability | Profiles, operations, tooling | Active |
+| Layer 2 — Portable Router / Native Daemon | Contract tests, Rust core, native service | Planned |
+| Layer 3 — Windows Librarian Client/App | App architecture, shell, runtime integration, custody UI | Proposed |
+
+**Completed sprints** are documented under `docs/sprints/`.
 
 ---
 
