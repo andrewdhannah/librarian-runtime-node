@@ -1,11 +1,11 @@
-//! ROUTER-RUST-CORE-1 — Minimal Rust router core for librarian-runtime-node.
+//! ROUTER-RUST-HARDEN-1 — Hardened Rust router core for librarian-runtime-node.
 //!
-//! Preserves the Python router's HTTP contract and proves Windows process
-//! lifecycle parity for llama.cpp backends.
+//! Preserves the Python router's HTTP contract and adds operational hardening.
 //!
 //! Usage:
 //!     cargo run --release -- --port 9130
 //!     cargo run --release -- --port 9130 --profiles <path-to-model-profiles.json>
+//!     ROUTER_PORT=9130 cargo run --release
 
 mod config;
 mod evidence;
@@ -13,21 +13,22 @@ mod process;
 mod refusal;
 mod server;
 
-use crate::config::ProfileManager;
+use crate::config::{ProfileManager, RouterConfig};
 use crate::evidence::EvidenceWriter;
-use crate::server::{build_router, AppState};
+use crate::server::{build_router, AppState, start_health_poller, stop_health_poller};
 use clap::Parser;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::{error, info};
+use tracing_subscriber::fmt::writer::BoxMakeWriter;
 use tracing_subscriber::EnvFilter;
 
 /// Default port matching the Python router's convention.
 const DEFAULT_PORT: u16 = 9130;
 
 #[derive(Parser, Debug)]
-#[command(name = "rust-router", version, about = "Minimal Rust router core for librarian-runtime-node")]
+#[command(name = "rust-router", version, about = "Hardened Rust router core for librarian-runtime-node")]
 struct Args {
     /// Router HTTP port.
     #[arg(long, default_value_t = DEFAULT_PORT)]
@@ -40,31 +41,30 @@ struct Args {
 
 #[tokio::main]
 async fn main() {
-    // Initialize logging
+    // Load config first to initialize logging
+    let config = RouterConfig::from_env();
+
+    // Initialize logging with optional file output
+    let writer: BoxMakeWriter = if let Some(ref log_path) = config.log_path {
+        let file = std::fs::File::create(log_path).expect("Failed to create log file");
+        BoxMakeWriter::new(file)
+    } else {
+        BoxMakeWriter::new(std::io::stdout)
+    };
+
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| EnvFilter::new("info")),
         )
         .with_target(true)
+        .with_writer(writer)
         .init();
 
     let args = Args::parse();
 
-    // Define profile sources matching Python router
-    let runtime_config = PathBuf::from(r"G:\openwork\librarian-runtime-node\config\model-profiles.json");
-    let librarian_config = PathBuf::from(
-        r"G:\openwork\thelibrarian\fixtures\windows-runtime-node\router\model-profiles.json",
-    );
-
-    let sources: Vec<&std::path::Path> = if let Some(ref custom) = args.profiles {
-        vec![custom.as_path(), &runtime_config, &librarian_config]
-    } else {
-        vec![&runtime_config, &librarian_config]
-    };
-
     // Load profiles
-    let profile_manager = match ProfileManager::load_from_sources(&sources) {
+    let profile_manager = match ProfileManager::load_from_config(&config) {
         Ok(pm) => pm,
         Err(e) => {
             error!("Failed to load profiles: {}", e);
@@ -87,9 +87,11 @@ async fn main() {
     // Build app state
     let state = Arc::new(AppState {
         profile_manager,
+        config: config.clone(),
         backends,
         evidence_writer,
         start_time: std::time::Instant::now(),
+        health_poller_handle: tokio::sync::Mutex::new(None),
     });
 
     // Write startup evidence
@@ -105,6 +107,9 @@ async fn main() {
         }),
     );
 
+    // Start background health poller
+    start_health_poller(state.clone(), config.health_poll_interval_secs).await;
+
     // Build router
     let app = build_router(state.clone());
 
@@ -112,7 +117,7 @@ async fn main() {
     let addr = format!("0.0.0.0:{}", args.port);
     let sep = "=".repeat(60);
     info!("{}", sep);
-    info!("rust-router v0.1 (ROUTER-RUST-CORE-1)");
+    info!("rust-router v0.1 (ROUTER-RUST-HARDEN-1)");
     info!("Listening on http://{}", addr);
     info!(
         "Profiles: {}",
@@ -131,7 +136,7 @@ async fn main() {
 
     // Serve with graceful shutdown on ctrl-c
     axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal(state))
+        .with_graceful_shutdown(shutdown_signal(state.clone()))
         .await
         .unwrap_or_else(|e| {
             error!("Server error: {}", e);
@@ -162,7 +167,10 @@ async fn shutdown_signal(state: Arc<AppState>) {
         _ = terminate => {},
     }
 
-    info!("Shutting down... Cleaning up backends...");
+    info!("Shutting down... Cleaning up backends and health poller...");
+
+    // Stop health poller
+    stop_health_poller(&state).await;
 
     let backends = state.backends.lock().await;
     for (alias, bp) in backends.iter() {

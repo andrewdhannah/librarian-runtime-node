@@ -6,6 +6,48 @@
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
+use std::path::PathBuf;
+
+/// Router configuration with environment variable overrides.
+#[derive(Debug, Clone)]
+pub struct RouterConfig {
+    pub router_port: u16,
+    pub backend_port_base: u16,
+    pub profile_config_path: Option<PathBuf>,
+    pub backend_binary_path: Option<PathBuf>,
+    pub evidence_path: Option<PathBuf>,
+    pub log_path: Option<PathBuf>,
+    pub health_timeout_secs: u64,
+    pub health_poll_interval_secs: u64,
+}
+
+impl RouterConfig {
+    /// Load configuration from environment variables with defaults.
+    pub fn from_env() -> Self {
+        RouterConfig {
+            router_port: std::env::var("ROUTER_PORT")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(9130),
+            backend_port_base: std::env::var("BACKEND_PORT_BASE")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(9120),
+            profile_config_path: std::env::var("PROFILE_CONFIG_PATH").ok().map(PathBuf::from),
+            backend_binary_path: std::env::var("BACKEND_BINARY_PATH").ok().map(PathBuf::from),
+            evidence_path: std::env::var("EVIDENCE_PATH").ok().map(PathBuf::from),
+            log_path: std::env::var("LOG_PATH").ok().map(PathBuf::from),
+            health_timeout_secs: std::env::var("HEALTH_TIMEOUT_SECS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(180),
+            health_poll_interval_secs: std::env::var("HEALTH_POLL_INTERVAL_SECS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(5),
+        }
+    }
+}
 
 /// A single model profile from the configuration file.
 #[derive(Debug, Clone, Deserialize)]
@@ -98,6 +140,28 @@ impl ProfileManager {
             sources.len(),
             last_err
         ))
+    }
+
+    /// Load profiles using RouterConfig for path overrides.
+    pub fn load_from_config(config: &RouterConfig) -> Result<Self, String> {
+        let mut sources: Vec<PathBuf> = Vec::new();
+
+        // Custom profile config path from env/config takes highest priority
+        if let Some(ref custom) = config.profile_config_path {
+            sources.push(custom.clone());
+        }
+
+        // Default sources matching Python router
+        let runtime_config = PathBuf::from(r"G:\openwork\librarian-runtime-node\config\model-profiles.json");
+        let librarian_config = PathBuf::from(
+            r"G:\openwork\thelibrarian\fixtures\windows-runtime-node\router\model-profiles.json",
+        );
+
+        sources.push(runtime_config);
+        sources.push(librarian_config);
+
+        let source_refs: Vec<&Path> = sources.iter().map(|p| p.as_path()).collect();
+        Self::load_from_sources(&source_refs)
     }
 
     pub fn get(&self, alias: &str) -> Option<&Profile> {

@@ -1,11 +1,12 @@
-//! Backend process manager — launches, monitors, and stops llama.cpp backends.
+﻿//! Backend process manager — launches, monitors, and stops llama.cpp backends.
 //!
 //! Each profile gets its own `BackendProcess` that manages the child
 //! `llama-server.exe` process lifecycle. The router holds a map of these,
 //! keyed by profile alias.
-
-use crate::config::Profile;
+//!
+use crate::config::{Profile, RouterConfig};
 use serde::Serialize;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::process::{Child, Command};
@@ -13,19 +14,12 @@ use tokio::sync::Mutex;
 use tokio::time::sleep;
 use tracing::{error, info, warn};
 
-#[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
-
 /// Windows: CREATE_NO_WINDOW = 0x08000000 to avoid console window for backend.
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 #[cfg(not(target_os = "windows"))]
 const CREATE_NO_WINDOW: u32 = 0;
 
-/// Timeout for backend startup health check (matching Python router: 180s).
-const BACKEND_START_TIMEOUT: Duration = Duration::from_secs(180);
-/// Timeout for individual health poll requests.
-const HEALTH_POLL_TIMEOUT: Duration = Duration::from_secs(3);
 /// Timeout for backend chat requests.
 const BACKEND_REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 
@@ -75,6 +69,7 @@ pub struct BackendStatus {
 pub struct BackendProcess {
     pub alias: String,
     pub profile: Profile,
+    config: RouterConfig,
     child: Arc<Mutex<Option<Child>>>,
     pub state: Arc<Mutex<BackendState>>,
     pub start_time: Arc<Mutex<Option<Instant>>>,
@@ -83,10 +78,11 @@ pub struct BackendProcess {
 }
 
 impl BackendProcess {
-    pub fn new(profile: Profile) -> Self {
+    pub fn new(profile: Profile, config: RouterConfig) -> Self {
         BackendProcess {
             alias: profile.alias.clone(),
             profile,
+            config,
             child: Arc::new(Mutex::new(None)),
             state: Arc::new(Mutex::new(BackendState::Stopped)),
             start_time: Arc::new(Mutex::new(None)),
@@ -144,10 +140,12 @@ impl BackendProcess {
         *self.error_message.lock().await = None;
         *self.health_fail_count.lock().await = 0;
 
-        let binary = r"G:\openwork\librarian-runtime-node\runtime\llama.cpp\llama-server.exe";
-        if !std::path::Path::new(binary).exists() {
+        let binary_default = PathBuf::from(r"G:\openwork\librarian-runtime-node\runtime\llama.cpp\llama-server.exe");
+        let binary = self.config.backend_binary_path.as_ref()
+            .unwrap_or(&binary_default);
+        if !binary.exists() {
             *state = BackendState::Failed;
-            let msg = format!("Binary not found: {}", binary);
+            let msg = format!("Binary not found: {}", binary.display());
             *self.error_message.lock().await = Some(msg.clone());
             error!("[{}] {}", self.alias, msg);
             return Err(msg);
@@ -155,7 +153,7 @@ impl BackendProcess {
 
         let cmd_str = format!(
             "{} -m \"{}\" -p {} -c {} -ngl {} -n 512 --alias \"{}\"",
-            binary,
+            binary.display(),
             self.profile.model_path,
             self.profile.port,
             self.profile.context,
@@ -198,7 +196,7 @@ impl BackendProcess {
         drop(state);
 
         // Wait for health
-        let deadline = Instant::now() + BACKEND_START_TIMEOUT;
+        let deadline = Instant::now() + Duration::from_secs(self.config.health_timeout_secs);
         let mut last_log = Instant::now();
 
         while Instant::now() < deadline {
@@ -237,7 +235,7 @@ impl BackendProcess {
         }
 
         *self.state.lock().await = BackendState::Failed;
-        let msg = format!("Timed out after {}s waiting for health", BACKEND_START_TIMEOUT.as_secs());
+        let msg = format!("Timed out after {}s waiting for health", self.config.health_timeout_secs);
         *self.error_message.lock().await = Some(msg.clone());
         error!("[{}] {}", self.alias, msg);
         Err(msg)
@@ -253,7 +251,7 @@ impl BackendProcess {
             info!("[{}] stopping (PID {})", self.alias, pid);
 
             // Try graceful terminate first
-            match child.start_kill() {
+            match child.kill().await {
                 Ok(()) => {
                     // Wait a bit for graceful shutdown
                     tokio::time::sleep(Duration::from_millis(500)).await;
@@ -269,12 +267,28 @@ impl BackendProcess {
         info!("[{}] stopped", self.alias);
     }
 
+    /// Restart the backend process: stop -> start -> wait healthy.
+    /// Returns Ok(()) if restart succeeds and backend becomes healthy.
+    /// Returns Err(String) if restart fails, leaving no orphan process.
+    pub async fn restart(&self) -> Result<(), String> {
+        info!("[{}] restarting...", self.alias);
+
+        // Stop first (this cleans up any existing process)
+        self.stop().await;
+
+        // Small delay to ensure port is released
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        // Start again
+        self.start().await
+    }
+
     /// Poll the backend health endpoint. Returns true if healthy.
     pub async fn check_health(&self) -> bool {
         let url = format!("http://127.0.0.1:{}/health", self.profile.port);
 
         match reqwest::Client::builder()
-            .timeout(HEALTH_POLL_TIMEOUT)
+            .timeout(Duration::from_secs(self.config.health_timeout_secs))
             .build()
             .ok()
         {

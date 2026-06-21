@@ -27,15 +27,21 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
+use tracing::{info, warn};
 // info used in evidence writes
 
 /// Shared application state.
 pub struct AppState {
     pub profile_manager: ProfileManager,
+    pub config: crate::config::RouterConfig,
     pub backends: Mutex<HashMap<String, Arc<BackendProcess>>>,
     pub evidence_writer: EvidenceWriter,
     pub start_time: std::time::Instant,
+    /// Background health poller handle (for graceful shutdown)
+    pub health_poller_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
 // ============================================================================
@@ -52,6 +58,11 @@ pub struct SelectRequest {
 #[derive(Debug, Deserialize)]
 pub struct StopRequest {
     pub profile: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RestartRequest {
+    pub profile: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -244,7 +255,7 @@ async fn handle_select(
         if let Some(existing) = backends.get(alias) {
             existing.clone()
         } else if let Some(profile_data) = state.profile_manager.get(alias) {
-            let bp = Arc::new(BackendProcess::new(profile_data.clone()));
+            let bp = Arc::new(BackendProcess::new(profile_data.clone(), state.config.clone()));
             backends.insert(alias.clone(), bp.clone());
             bp
         } else {
@@ -338,6 +349,86 @@ async fn handle_stop(
     });
     state.evidence_writer.write("stop-result.json", &response);
     (StatusCode::OK, Json(response))
+}
+
+// ============================================================================
+// POST /backend/restart
+// ============================================================================
+
+async fn handle_restart(
+    State(state): State<Arc<AppState>>,
+    axum::Json(body): axum::Json<RestartRequest>,
+) -> (StatusCode, Json<Value>) {
+    let alias = &body.profile;
+
+    // Check if profile exists
+    let profile = state.profile_manager.get(alias);
+    if profile.is_none() {
+        let resp = json!({
+            "status": "refused",
+            "reason": "unknown_profile",
+            "detail": format!("No profile registered with alias '{}'", alias),
+            "authority": "advisory_only",
+            "timestamp": Utc::now().to_rfc3339(),
+        });
+        state.evidence_writer.write("restart-invalid.json", &resp);
+        return (StatusCode::FORBIDDEN, Json(resp));
+    }
+
+    // Get the backend process
+    let bp = {
+        let backends = state.backends.lock().await;
+        backends.get(alias).cloned()
+    };
+
+    let bp = match bp {
+        Some(bp) => bp,
+        None => {
+            let resp = json!({
+                "status": "refused",
+                "reason": "runtime_unhealthy",
+                "detail": format!("No runtime for profile '{}'. Select it first.", alias),
+                "authority": "advisory_only",
+                "timestamp": Utc::now().to_rfc3339(),
+            });
+            state.evidence_writer.write("restart-invalid.json", &resp);
+            return (StatusCode::SERVICE_UNAVAILABLE, Json(resp));
+        }
+    };
+
+    // Get old PID before restart
+    let old_pid = bp.get_status().await.pid;
+
+    // Perform restart (stop -> start -> wait healthy)
+    let result = bp.restart().await;
+
+    let new_pid = bp.get_status().await.pid;
+
+    match result {
+        Ok(()) => {
+            let response = json!({
+                "status": "restarted",
+                "profile": alias,
+                "old_pid": old_pid,
+                "new_pid": new_pid,
+                "authority": "advisory_only",
+            });
+            state.evidence_writer.write("restart-result.json", &response);
+            (StatusCode::OK, Json(response))
+        }
+        Err(e) => {
+            let resp = json!({
+                "status": "failed",
+                "profile": alias,
+                "old_pid": old_pid,
+                "new_pid": new_pid,
+                "error": e,
+                "authority": "advisory_only",
+            });
+            state.evidence_writer.write("restart-result.json", &resp);
+            (StatusCode::SERVICE_UNAVAILABLE, Json(resp))
+        }
+    }
 }
 
 // ============================================================================
@@ -498,6 +589,36 @@ async fn handle_v1_chat(
 }
 
 // ============================================================================
+// GET /v1/models (OpenAI-compatible identity endpoint)
+// ============================================================================
+
+async fn handle_v1_models(
+    State(state): State<Arc<AppState>>,
+) -> Json<Value> {
+    // Return configured available profiles as OpenAI-compatible models list
+    // Does not expose local model file paths
+    let models: Vec<Value> = state.profile_manager.iter().map(|p| {
+        json!({
+            "id": p.alias,
+            "object": "model",
+            "created": chrono::Utc::now().timestamp(),
+            "owned_by": "librarian-runtime-node",
+            "permission": [],
+            "root": p.alias,
+            "parent": null,
+        })
+    }).collect();
+
+    let response = json!({
+        "object": "list",
+        "data": models,
+        "authority": "advisory_only",
+    });
+    state.evidence_writer.write("v1-models.json", &response);
+    Json(response)
+}
+
+// ============================================================================
 // Router construction
 // ============================================================================
 
@@ -510,10 +631,69 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .route("/health", get(handle_health_legacy))
         .route("/backend/select", post(handle_select))
         .route("/backend/stop", post(handle_stop))
+        .route("/backend/restart", post(handle_restart))
         .route("/backend/chat", post(handle_chat))
         .route("/v1/chat/completions", post(handle_v1_chat))
+        .route("/v1/models", get(handle_v1_models))
         .layer(
             tower_http::cors::CorsLayer::permissive()
         )
         .with_state(state)
+}
+
+/// Start the background health poller.
+/// Polls all running backends at the given interval and updates their state.
+/// Does NOT auto-restart backends - only updates state to degraded/failed.
+pub async fn start_health_poller(state: Arc<AppState>, interval_secs: u64) {
+    let state_for_spawn = state.clone();
+    let handle = tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
+        info!("Health poller started (interval: {}s)", interval_secs);
+
+        loop {
+            interval.tick().await;
+
+            // Get list of backend aliases to check
+            let aliases: Vec<String> = {
+                let backends = state_for_spawn.backends.lock().await;
+                backends.keys().cloned().collect()
+            };
+
+            for alias in aliases {
+                let bp = {
+                    let backends = state_for_spawn.backends.lock().await;
+                    backends.get(&alias).cloned()
+                };
+
+                if let Some(bp) = bp {
+                    let state_val = bp.get_state().await;
+                    // Only poll if not stopped/failed
+                    if state_val != BackendState::Stopped && state_val != BackendState::Failed {
+                        let healthy = bp.check_health().await;
+                        if !healthy {
+                            let new_state = bp.get_state().await;
+                            if new_state == BackendState::Degraded {
+                                warn!("[{}] health poller: backend degraded", alias);
+                            } else if new_state == BackendState::Failed {
+                                warn!("[{}] health poller: backend failed", alias);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Store the handle for graceful shutdown
+    let mut handle_guard = state.health_poller_handle.lock().await;
+    *handle_guard = Some(handle);
+}
+
+/// Stop the background health poller.
+pub async fn stop_health_poller(state: &Arc<AppState>) {
+    let mut handle_guard = state.health_poller_handle.lock().await;
+    if let Some(handle) = handle_guard.take() {
+        handle.abort();
+        info!("Health poller stopped");
+    }
 }
