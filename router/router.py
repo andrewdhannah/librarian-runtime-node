@@ -48,6 +48,13 @@ HEALTH_POLL_SECONDS = 5
 BACKEND_START_TIMEOUT_SECONDS = 180
 BACKEND_HEALTH_TIMEOUT_SECONDS = 5
 BACKEND_REQUEST_TIMEOUT_SECONDS = 120
+MAX_BODY_BYTES = 64 * 1024  # 64 KB maximum request body size
+
+
+class RequestTooLarge(Exception):
+    """Raised when request body exceeds MAX_BODY_BYTES."""
+    pass
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -155,9 +162,35 @@ class ProcessManager:
         self.error_message = None
         self._lock = threading.Lock()
         self._evidence_callback = evidence_callback
+        # Backend log management
+        self._log_path = RUNTIME_NODE / "logs" / f"backend_{self.alias}.log"
+        self._log_handle = None
+
+    def _open_log(self):
+        """Open or reopen the backend log file. Returns the file handle."""
+        logs_dir = RUNTIME_NODE / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        handle = open(str(self._log_path), "w", encoding="utf-8")
+        self._log_handle = handle
+        return handle
+
+    def _close_log(self):
+        """Close the backend log handle if open."""
+        if self._log_handle is not None:
+            try:
+                self._log_handle.close()
+            except Exception:
+                pass
+            self._log_handle = None
 
     def start(self, timeout=BACKEND_START_TIMEOUT_SECONDS):
-        """Start the llama-server process for this profile."""
+        """Start the llama-server process for this profile.
+        
+        Lock is held only for state transitions, NOT across the health
+        wait loop, so the background HealthPoller can still acquire the
+        lock via poll_health() during startup.
+        """
+        # Phase 1: Setup under lock
         with self._lock:
             if self.process and self.process.poll() is None:
                 log.info("[%s] already running (PID %d)", self.alias, self.pid)
@@ -185,41 +218,54 @@ class ProcessManager:
             ]
 
             try:
+                # Close any previous log handle before opening new one
+                self._close_log()
+                log_handle = self._open_log()
                 self.process = subprocess.Popen(
                     cmd,
-                    stdout=open(f"backend_{self.alias}.log", "w"),
+                    stdout=log_handle,
                     stderr=subprocess.STDOUT,
                     creationflags=subprocess.CREATE_NO_WINDOW,
                 )
                 self.pid = self.process.pid
                 self.start_time = time.time()
                 log.info("[%s] started (PID %d, port %d)", self.alias, self.pid, self.port)
-
-                # Wait for health
-                deadline = time.time() + timeout
-                while time.time() < deadline:
-                    if self.process.poll() is not None:
-                        self.state = "failed"
-                        self.error_message = f"Process exited (code {self.process.returncode})"
-                        log.error("[%s] %s", self.alias, self.error_message)
-                        return False
-                    if self._check_health():
-                        self.state = "healthy"
-                        self.last_health_time = time.time()
-                        log.info("[%s] healthy after %.1fs", self.alias, time.time() - self.start_time)
-                        return True
-                    time.sleep(2)
-
-                self.state = "failed"
-                self.error_message = f"Timed out after {timeout}s waiting for health"
-                log.error("[%s] %s", self.alias, self.error_message)
-                return False
-
             except FileNotFoundError as e:
+                self._close_log()
                 self.state = "failed"
                 self.error_message = str(e)
                 log.error("[%s] Failed to start: %s", self.alias, e)
                 return False
+
+        # Phase 2: Health wait loop (lock NOT held)
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            with self._lock:
+                # Re-check process status each iteration (under lock)
+                if self.process.poll() is not None:
+                    self._close_log()
+                    self.state = "failed"
+                    self.error_message = f"Process exited (code {self.process.returncode})"
+                    log.error("[%s] %s", self.alias, self.error_message)
+                    return False
+
+            # Check health outside the lock so HealthPoller can run
+            if self._check_health():
+                with self._lock:
+                    self.state = "healthy"
+                    self.last_health_time = time.time()
+                log.info("[%s] healthy after %.1fs", self.alias, time.time() - self.start_time)
+                return True
+
+            time.sleep(2)
+
+        # Phase 3: Timed out — update state under lock
+        with self._lock:
+            self._close_log()
+            self.state = "failed"
+            self.error_message = f"Timed out after {timeout}s waiting for health"
+            log.error("[%s] %s", self.alias, self.error_message)
+        return False
 
     def stop(self):
         """Stop the llama-server process."""
@@ -239,6 +285,8 @@ class ProcessManager:
             else:
                 self.state = "stopped"
                 self.pid = None
+        # Close log handle outside the lock (no state dependency)
+        self._close_log()
 
     def restart(self):
         """Restart the backend process."""
@@ -566,10 +614,39 @@ class RouterHandler(BaseHTTPRequestHandler):
         self._send_json({"error": detail}, status)
 
     def _read_body(self):
-        length = int(self.headers.get("Content-Length", 0))
-        if length > 0:
-            return json.loads(self.rfile.read(length).decode("utf-8"))
-        return {}
+        """Read and parse request body. Raises RequestTooLarge if oversized."""
+        raw_length = self.headers.get("Content-Length", "0")
+        try:
+            length = int(raw_length)
+        except (ValueError, TypeError):
+            length = 0
+
+        if length <= 0:
+            return {}
+
+        if length > MAX_BODY_BYTES:
+            raise RequestTooLarge(
+                f"Request body length {length} exceeds maximum {MAX_BODY_BYTES} bytes"
+            )
+
+        # Read in chunks to avoid loading oversized data into memory
+        chunks = []
+        remaining = min(length, MAX_BODY_BYTES)
+        while remaining > 0:
+            chunk_size = min(remaining, 16384)
+            chunk = self.rfile.read(chunk_size)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+
+        body_bytes = b"".join(chunks)
+        if len(body_bytes) > MAX_BODY_BYTES:
+            raise RequestTooLarge(
+                f"Request body {len(body_bytes)} exceeds maximum {MAX_BODY_BYTES} bytes"
+            )
+
+        return json.loads(body_bytes.decode("utf-8"))
 
     # ---- Routes ----
 
@@ -590,6 +667,9 @@ class RouterHandler(BaseHTTPRequestHandler):
         path = self.path.rstrip("/")
         try:
             body = self._read_body()
+        except RequestTooLarge as e:
+            self._send_error_json(413, str(e))
+            return
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
             self._send_error_json(400, f"Invalid JSON body: {e}")
             return
