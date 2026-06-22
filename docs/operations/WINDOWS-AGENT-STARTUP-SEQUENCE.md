@@ -255,6 +255,57 @@ Agents must not:
 
 ---
 
+## Anti-Loop Rules
+
+These rules exist because Windows/runtime sprints tend to combine many failure modes at once: cross-repo state, service lifecycle, process cleanup, auth setup, temporary secrets, Python/Rust overlap, long-running agent execution, and proof scripts that can themselves mutate. Without explicit anti-loop discipline, agents will retry the same failing command, broaden scope after a timeout, rewrite working code to fix unrelated failures, or commit generated cache files.
+
+### Core anti-loop rules
+
+1. **Two-strike rule.** Stop after two failed attempts at the same command, test, or code path. After the second failure, do not retry. Record the failure, form a hypothesis, and change the smallest possible thing.
+2. **No scope broadening after timeout.** If a workflow times out, do not add new commands, new files, or new hypotheses to recover. Restore state first, then re-plan in a fresh, narrower step.
+3. **Do not rewrite working code to fix unrelated failures.** If a recent change is not the cause of a failure, do not edit it. Edit only the closest thing to the failure.
+4. **Record before retry.** Before any retry, record: command, failure mode, hypothesis, smallest next action. If you cannot articulate the hypothesis, you are not ready to retry.
+5. **Service-state restore beats forward progress.** If the service/router/backend state becomes ambiguous, restore first: stop service/router/backend, free port 9130, confirm no `llama-server` orphans. Then re-plan.
+6. **One repo at a time.** Never mutate both repos in the same sprint unless the sprint explicitly requires it. Mixing repos is the most common cause of "this is bigger than the original scope".
+7. **No cache files in commits.** Never commit `__pycache__/`, `*.pyc`, `*.pyo`, `.pytest_cache/`, build artifacts, model files, or other generated content. Add to `.gitignore` instead.
+8. **No pre-existing-dirty sweep.** Never sweep pre-existing modified or untracked files into a sprint commit without explicit scope. Treat pre-existing dirt as prior context; either seal it in its own docs-only commit, or leave it.
+9. **Generate temporary tokens locally.** If auth/token setup blocks a proof, generate a temporary local token. Do not ask the Owner to paste secrets. The receipt records `token_source: "environment"` and `token_logged: false` — never the token value.
+10. **Receipts may report partial/fail.** Do not edit evidence to force pass. If the receipt's `overall` is `partial` or `fail`, the receipt is doing its job. Honest records are more valuable than green checks.
+
+### Cross-repo and pre-existing state
+
+- If a sprint starts with pre-existing dirty files in either repo, treat them as out-of-scope unless the Owner explicitly assigns them.
+- If a sprint needs to seal pre-existing dirty files, do so in a separate docs-only commit, never bundled with code changes.
+- If `git status` shows files you did not intend to change, stop. Restore them, or ask before committing.
+
+### Process and service discipline
+
+- The Rust router and the Python router both leave orphan risks. Always check for `rust-router.exe`, `python.exe` (router), and `llama-server.exe` after closing.
+- Port 9130 must be free at sprint closeout. The ad-hoc router used for proof runs is not a permanent service; kill it before declaring done.
+- The Windows service `LibrarianRunTimeNode` must remain `Stopped` / `Manual` unless the Owner explicitly approves changing it.
+- Never call `nssm set` or modify service parameters during a proof run. Use the ad-hoc router binary; leave NSSM alone.
+
+### Token discipline
+
+- Generate temporary tokens locally (e.g., `[System.Guid]::NewGuid().ToString("N")`) and never print them.
+- Do not write the token to any repo file. If you must persist across bash invocations, use a temp file outside the repo (e.g., `$env:TEMP\run_token.txt`) and delete it after the proof.
+- Do not log the token. The proof and verifier must both treat the token as opaque.
+- The receipt must record only `token_source`, `token_logged`, `missing_token_status`, and `invalid_token_status` — never the token value.
+
+### Evidence discipline
+
+- The receipt's `result.overall` must be derived from recorded evidence, not manually asserted. If the proof says all 7 endpoints passed, the receipt must say so. If cleanup left 1 orphan, the receipt must say so.
+- The verifier's `--reject` mode exists for a reason. Run a rejection test (malformed or secret-bearing receipt) at least once per sprint to prove the verifier actually rejects.
+- Do not "fix" a partial/fail verdict by changing what the proof checks. Fix the underlying issue or change the schema only if the prior schema was wrong.
+
+### Commit hygiene
+
+- One sprint = one coherent commit (or one docs commit + one code commit for cross-cutting sprints).
+- Commit messages should reference the sprint ID, list the substantive changes, and note any intentionally-out-of-scope items.
+- Never commit `__pycache__/`, build artifacts, or model files. Add to `.gitignore` first.
+
+---
+
 ## Future Direction
 
 The Librarian should eventually own this startup sequence directly.

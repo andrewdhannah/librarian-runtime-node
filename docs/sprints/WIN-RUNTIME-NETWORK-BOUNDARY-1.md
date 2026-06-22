@@ -43,6 +43,25 @@ All integration tests passed:
 ### Proof Scripts
 A PowerShell script `scripts/test_network_boundary.ps1` is provided to verify the network boundary and authentication behavior.
 
+---
+
+## Closeout Record
+
+| Field | Value |
+|-------|-------|
+| **Sprint** | WIN-RUNTIME-NETWORK-BOUNDARY-1 |
+| **Repository** | `librarian-runtime-node` |
+| **Starting HEAD** | `53f0450` (ROUTER-RUST-HARDEN-1 sealed) |
+| **Final HEAD** | `82b3a9d` |
+| **Commit Message** | `feat(runtime): define and enforce runtime node network boundary` |
+| **Date** | 2026-06-21 |
+| **Git Status** | `nothing to commit, working tree clean` |
+
+### Summary
+This sprint defined and enforced the network exposure boundary for the Windows Runtime Node: default bind `127.0.0.1`, token-auth via `ROUTER_AUTH_TOKEN`/`ROUTER_REQUIRE_AUTH`, request size limit via `ROUTER_MAX_BODY_BYTES`, log redaction of auth tokens, and Windows Firewall documentation for LAN mode.
+
+All integration tests pass. The boundary is now part of the Rust router contract and must not be weakened by future sprints.
+
 ## Next Sprint Recommendation
 - Implement TLS for encrypted communication when running in LAN mode.
 - Refine endpoint protection to allow unauthenticated access to specific diagnostic endpoints (e.g., `/health`) if desired.
