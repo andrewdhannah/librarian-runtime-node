@@ -179,8 +179,8 @@ impl BackendProcess {
             .arg("512")
             .arg("--alias")
             .arg(&self.alias)
-            .stdout(log_file)
-            .stderr(std::process::Stdio::inherit())
+            .stdout(log_file.try_clone().map_err(|e| format!("Failed to clone log file: {}", e))?)
+            .stderr(log_file)
             .creation_flags(CREATE_NO_WINDOW)
             .spawn()
             .map_err(|e| format!("Failed to spawn backend: {}", e))?;
