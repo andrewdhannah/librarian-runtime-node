@@ -198,6 +198,11 @@ impl ProfileManager {
                     "verified": p.verified_status == "verified",
                     "port": p.port,
                     "model_file": p.model_file,
+                    "backend": p.backend,
+                    "context": p.context,
+                    "ngl": p.ngl,
+                    "evidence_path": p.evidence_path,
+                    "limitations": p.limitations,
                 })
             })
             .collect()
