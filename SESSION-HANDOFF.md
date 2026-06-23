@@ -2,7 +2,7 @@
 
 > Quick summary for an agent or human picking up where the last session left off.
 > Root: `G:\OpenWork\librarian-runtime-node\`
-> Updated: 2026-06-22
+> Updated: 2026-06-23
 
 ## Repo Identity
 
@@ -18,38 +18,77 @@
 
 ## Runtime Node Roadmap
 
+For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
+
+**Current baseline:** librarian-runtime-node `e7cfe33`, TheLibrarian-main `1e32002`
+**Last sealed sprint:** WIN-RUNTIME-QUALIFICATION-1
+
 | Sprint | Status |
 |--------|--------|
-| WIN-RUNTIME-NETWORK-BOUNDARY-1 | ✅ **Sealed** (final commit `82b3a9d`) |
-| WIN-RUNTIME-INTEGRATION-1 | ✅ **Sealed** (TheLibrarian-main commit `ecda805`) |
-| WIN-RUNTIME-HARDEN-1A | ✅ **Sealed** (librarian-runtime-node commit `cef8581`) |
-| WIN-RUNTIME-RECEIPTS-1 | ✅ **Sealed** (TheLibrarian-main commit `1e32002`, librarian-runtime-node hardened in `cef8581`) |
-| **WIN-RUNTIME-SEAL-AND-ANTI-LOOP-1** | ← **Current sprint** (docs-only) |
-| RUNTIME-NODE-QUALIFICATION-1 | ⏳ Future |
+| RUNTIME-REPO-INIT-1 | ✅ Done |
+| WIN-SERVICE-LIFECYCLE-1 | ✅ Done |
+| WIN-BACKEND-SERVICE-PROOF-1 | ✅ Done |
+| WIN-ROUTER-HARDEN-1 | ✅ Done |
+| WIN-MODEL-CONTEXT-FIT-2 | ✅ Done |
+| ROUTER-PORTABILITY-1 | ✅ Done |
+| REDUCED-OFFLOAD-FIT-1 | ✅ Done |
+| WINDOWS-PC-PLAN-UPDATE-1 | ✅ Done |
+| WIN-RUNTIME-INTEGRATION-1 | ✅ Done |
+| WIN-RUNTIME-RECEIPT-CLEANUP-1 | ✅ Done |
+| WIN-RUNTIME-RECEIPTS-2 | ✅ Done |
+| WIN-RUNTIME-QUALIFICATION-1 | ✅ Done |
+| **WINDOWS-PC-PLAN-UPDATE-2** | **← Current sprint** |
+| **WIN-RUNTIME-OPERATIONS-1** | **← Next** |
+
+## Proof Chain Complete
+
+The three-link runtime proof chain is sealed:
+
+| Link | Evidence |
+|------|----------|
+| 1. Source HEAD proof | `e7cfe33` (runtime-node), `1e32002` (main) |
+| 2. Artifact hash proof | SHA-256 `84EB797A715FDC4CDB634A85FDFEC5C81CB90F37FB700F6EA6C97576B9569DC9` |
+| 3. Governed rebuild proof | Rebuild hash matches receipt; 38/38 qualification gate passed |
+
+**Key infrastructure:**
+- v2 receipt schema at `receipts/runtime-integration/schema-v2.json`
+- 48-check receipt verifier at `scripts/verify-receipt.ps1`
+- Integration proof v2 script at `scripts/run-integration-proof-v2.ps1`
+- Qualification scripts at `scripts/run-runtime-qualification.ps1` and `scripts/verify-runtime-qualification.ps1`
 
 ## Current State (repos)
 
 ### librarian-runtime-node
-- **HEAD**: `cef8581` — `fix(router): harden Python runtime lifecycle and request handling` (WIN-RUNTIME-HARDEN-1A)
-- **Working tree**: Clean (after this docs commit lands) ✅
+- **HEAD**: `e7cfe33` — `test(runtime): add rebuild qualification proof gate`
+- **Working tree**: Clean ✅
 - **Service**: `LibrarianRunTimeNode` is Stopped / Manual ✅
 - **Port 9130**: Free ✅
 - **llama-server orphans**: None ✅
 
 ### TheLibrarian-main
-- **HEAD**: `1e32002` — `feat(runtime): add integration proof receipts and verifier` (WIN-RUNTIME-RECEIPTS-1)
+- **HEAD**: `1e32002` — `feat(runtime): add integration proof receipts and verifier`
 - **Working tree**: Clean ✅
 - **Existing integration**: `Sources/App/Services/WindowsRuntimeNodeGenerationBackend.swift` (advisory target, `GenerationBackend` protocol)
 - **Integration proof**: `scripts/integration_proof.py` — emits JSON receipt to `receipts/runtime-integration/`
-- **Receipt verifier**: `scripts/receipt_verifier.py` — 29 checks (schema, lifecycle, cleanup, secret-scan, evidence-derived overall)
+- **Receipt verifier**: `scripts/receipt_verifier.py` — 29 checks (legacy; v2 verifier is `scripts/verify-receipt.ps1`)
 
-## Receipt (current run)
+## Current Receipts
 
-- **Path**: `G:\OpenWork\receipts\runtime-integration\win-runtime-integration-2026-06-22T193351Z-qwen-coder.json`
-- **Schema**: `win-runtime-receipt/v1` (declared at `receipts/runtime-integration/schema.json`)
-- **Verifier result**: **29/29 checks passed** (good-receipt test)
-- **Overall status**: `partial` — proof says all 7 authenticated endpoints passed and all 2 unauthorized checks returned 401, but the proof's cleanup check found 1 backend process still running after stop+retries (`backend_orphans_after_stop: 1`). This is honestly recorded, NOT edited to force pass.
-- **Token safety**: temporary one-off token used for the proof; never persisted, logged, included in receipt, or committed.
+### Latest v2 Integration Receipt
+- **Path:** `receipts/runtime-integration/win-runtime-integration-v2-20260622-232214-qwen-coder.json`
+- **Schema:** `win-runtime-receipt/v2`
+- **Overall:** `pass`
+- **Artifact SHA-256:** `84EB797A715FDC4CDB634A85FDFEC5C81CB90F37FB700F6EA6C97576B9569DC9`
+- **Cleanup:** listener_active=false, connectivity=refused, orphans=0
+
+### Latest Qualification Record
+- **Path:** `receipts/runtime-qualification/win-runtime-qualification-20260622-234015.json`
+- **Gate:** 38/38 passed
+- **Rebuild hash matches receipt:** true
+
+### Historical v1 Receipts
+- `receipts/runtime-integration/win-runtime-integration-2026-06-22T193351Z-qwen-coder.json` (overall=partial — reconciled)
+- `receipts/runtime-integration/win-runtime-integration-2026-06-22T195000Z-qwen-coder-cleanup-proof.json` (overall=pass)
 
 ## Process State (as of handoff)
 
@@ -66,35 +105,47 @@
 | Path | Description |
 |------|-------------|
 | `rust-router/src/` | Rust router source (core router) |
-| `router/router.py` | Python router (fallback/reference) — now uses non-blocking lock pattern, explicit log path, 64KB body limit |
+| `router/router.py` | Python router (fallback/reference) |
 | `config/model-profiles.json` | 5 verified profiles (phi-4, qwen-coder, llama-3.2, qwen3, gemma-3) |
 | `config/runtime-node.example.json` | Template for local config |
 | `config/runtime-node.local.json` | **Local config — gitignored** |
-| `docs/sprints/WIN-RUNTIME-NETWORK-BOUNDARY-1.md` | Network boundary sprint spec + closeout |
+| `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md` | ✅ Updated through WIN-RUNTIME-QUALIFICATION-1 |
+| `docs/sprints/*.md` | Individual sprint specs and closeouts |
 | `docs/operations/WINDOWS-AGENT-STARTUP-SEQUENCE.md` | Mandatory agent startup checklist + **anti-loop rules** |
-| `scripts/test-rust-router-endpoints.ps1` | 15-test endpoint suite |
+| `scripts/run-integration-proof-v2.ps1` | Automated lifecycle proof (v2 receipts) |
+| `scripts/verify-receipt.ps1` | 48-check receipt verifier |
+| `scripts/run-runtime-qualification.ps1` | Governed rebuild qualification |
+| `scripts/verify-runtime-qualification.ps1` | Qualification gate verifier |
 | `scripts/start-librarian-runtime-node.ps1` | Service launcher (Rust primary, Python fallback) |
+| `scripts/test-rust-router-endpoints.ps1` | 15-test endpoint suite |
 | `.gitignore` | Exclusion policy for models, logs, secrets |
 
 ### TheLibrarian-main
 | Path | Description |
 |------|-------------|
-| `Sources/App/Services/WindowsRuntimeNodeGenerationBackend.swift` | Existing Swift integration (advisory) |
-| `scripts/integration_proof.py` | Governed Mac → Windows proof; emits JSON receipt to `receipts/runtime-integration/` |
-| `scripts/receipt_verifier.py` | 29-check receipt verifier |
+| `Sources/App/Services/WindowsRuntimeNodeGenerationBackend.swift` | Swift integration (advisory) |
+| `scripts/integration_proof.py` | Governed Mac → Windows proof |
+| `scripts/receipt_verifier.py` | 29-check v1 receipt verifier (legacy) |
 | `scripts/integration_proof_result.json` | Latest proof result (overwritten each run) |
-| `G:\OpenWork\receipts\runtime-integration/schema.json` | Receipt schema v1 |
-| `G:\OpenWork\receipts\runtime-integration/*.json` | Real receipt runs |
+
+### Receipts
+| Path | Description |
+|------|-------------|
+| `G:\OpenWork\receipts\runtime-integration/schema.json` | v1 schema (legacy) |
+| `G:\OpenWork\receipts\runtime-integration/schema-v2.json` | v2 schema (active) |
+| `G:\OpenWork\receipts\runtime-integration/*.json` | Integration receipts |
+| `G:\OpenWork\receipts\runtime-qualification/*.json` | Qualification records |
 
 ## Pre-Work Checklist (next session must run)
 
-1. Verify both repos' current HEAD — do not assume `cef8581` / `1e32002`
+1. Verify both repos' current HEAD — do not assume prior values
 2. Verify working tree is clean on both repos
 3. Verify `LibrarianRunTimeNode` service is Stopped / Manual before testing
 4. Verify port 9130 is free before testing
 5. Verify no orphan `llama-server`, `rust-router`, or Python router processes
 6. Do not weaken the network boundary
 7. If auth/token setup blocks proof, generate a temporary local token (do not ask Owner to paste secrets)
+8. Refer to `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md` for current sprint priority
 
 ## Network Boundary Policy (do not weaken)
 
@@ -110,6 +161,7 @@
 1. **SSH key not configured.** Remote uses HTTPS. Push requires authentication credentials.
 2. **Swift test cannot run on Windows.** The Swift toolchain is unavailable. Any `TheLibrarian-main` integration work on Windows is manual audit / proof-script only.
 3. **Ad-hoc `rust-router` orphan risk.** When running the router outside NSSM for a proof run, it must be killed after the proof. Always check after closing.
+4. **model-profiles.json metadata gaps.** Missing fields: `verified_context`, `verified_ngl`, `stability`, `requires_reduced_offload`, `notes`. Scheduled for WIN-RUNTIME-PROFILES-CLEANUP-1.
 
 ## Anti-Loop Rules (see `docs/operations/WINDOWS-AGENT-STARTUP-SEQUENCE.md`)
 
