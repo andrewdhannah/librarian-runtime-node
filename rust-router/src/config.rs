@@ -22,6 +22,9 @@ pub struct RouterConfig {
     pub evidence_path: Option<PathBuf>,
     pub log_path: Option<PathBuf>,
     pub health_timeout_secs: u64,
+    /// Timeout for each individual health check HTTP request (default 5s).
+    /// Separate from health_timeout_secs which gates backend startup.
+    pub health_check_timeout_secs: u64,
     pub health_poll_interval_secs: u64,
 }
 
@@ -54,6 +57,10 @@ impl RouterConfig {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(180),
+            health_check_timeout_secs: std::env::var("HEALTH_CHECK_TIMEOUT_SECS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(5),
             health_poll_interval_secs: std::env::var("HEALTH_POLL_INTERVAL_SECS")
                 .ok()
                 .and_then(|v| v.parse().ok())

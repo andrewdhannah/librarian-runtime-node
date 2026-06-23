@@ -241,7 +241,15 @@ impl BackendProcess {
         Err(msg)
     }
 
-    /// Stop the backend process.
+    /// Stop the backend process with graceful termination sequence.
+    ///
+    /// Sequence:
+    ///   1. Start kill (SIGTERM/TerminateProcess)
+    ///   2. Wait up to 5 seconds for the process to exit
+    ///   3. If still alive, force kill
+    ///   4. Set state to Stopped, release the child handle
+    ///
+    /// This matches the Python router's `terminate() -> wait(5s) -> kill()` pattern.
     pub async fn stop(&self) {
         let mut child_guard = self.child.lock().await;
         let mut state = self.state.lock().await;
@@ -250,16 +258,50 @@ impl BackendProcess {
             let pid = child.id().unwrap_or(0);
             info!("[{}] stopping (PID {})", self.alias, pid);
 
-            // Try graceful terminate first
-            match child.kill().await {
+            // Step 1: Start graceful termination
+            match child.start_kill() {
                 Ok(()) => {
-                    // Wait a bit for graceful shutdown
-                    tokio::time::sleep(Duration::from_millis(500)).await;
+                    info!("[{}] terminate signal sent to PID {}", self.alias, pid);
+
+                    // Step 2: Wait up to 5 seconds for graceful exit
+                    let deadline = Instant::now() + Duration::from_secs(5);
+                    let mut exited_cleanly = false;
+
+                    while Instant::now() < deadline {
+                        match child.try_wait() {
+                            Ok(Some(_)) => {
+                                exited_cleanly = true;
+                                break;
+                            }
+                            Ok(None) => {}
+                            Err(e) => {
+                                warn!("[{}] wait error: {}", self.alias, e);
+                                break;
+                            }
+                        }
+                        sleep(Duration::from_millis(200)).await;
+                    }
+
+                    if exited_cleanly {
+                        info!("[{}] process exited cleanly", self.alias);
+                    } else {
+                        // Step 3: Force kill
+                        warn!("[{}] graceful shutdown timed out (5s), forcing kill", self.alias);
+                        match child.kill().await {
+                            Ok(()) => info!("[{}] force kill succeeded", self.alias),
+                            Err(e) => warn!("[{}] force kill failed: {}", self.alias, e),
+                        }
+                    }
                 }
                 Err(e) => {
-                    warn!("[{}] kill failed: {}", self.alias, e);
+                    warn!("[{}] terminate failed, forcing kill: {}", self.alias, e);
+                    if let Err(kill_err) = child.kill().await {
+                        warn!("[{}] force kill also failed: {}", self.alias, kill_err);
+                    }
                 }
             }
+        } else {
+            info!("[{}] no running process to stop", self.alias);
         }
 
         *state = BackendState::Stopped;
@@ -284,11 +326,15 @@ impl BackendProcess {
     }
 
     /// Poll the backend health endpoint. Returns true if healthy.
+    ///
+    /// Uses a tight timeout (health_check_timeout_secs, default 5s) so the
+    /// health poller does not block for 3 minutes if a backend hangs.
+    /// Startup health wait uses the separate health_timeout_secs (default 180s).
     pub async fn check_health(&self) -> bool {
         let url = format!("http://127.0.0.1:{}/health", self.profile.port);
 
         match reqwest::Client::builder()
-            .timeout(Duration::from_secs(self.config.health_timeout_secs))
+            .timeout(Duration::from_secs(self.config.health_check_timeout_secs))
             .build()
             .ok()
         {
