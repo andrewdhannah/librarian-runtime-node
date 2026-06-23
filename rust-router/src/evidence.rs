@@ -32,6 +32,17 @@ impl EvidenceWriter {
         }
     }
 
+    /// Write a plain-text evidence file (e.g. process-before-after.txt).
+    /// Creates the file directly in the evidence directory without counter suffixing.
+    pub fn write_text(&self, filename: &str, content: &str) -> String {
+        let path = self.directory.join(filename);
+        match std::fs::write(&path, content) {
+            Ok(_) => info!("Evidence written: {}", path.display()),
+            Err(e) => tracing::warn!("Failed to write evidence {}: {}", path.display(), e),
+        }
+        path.to_string_lossy().to_string()
+    }
+
     /// Write a JSON value as evidence.
     pub fn write(&self, filename: &str, data: &serde_json::Value) -> String {
         // Add a counter suffix to avoid overwriting

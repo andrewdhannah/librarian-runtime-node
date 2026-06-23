@@ -434,6 +434,19 @@ async fn handle_restart(
 
     let new_pid = bp.get_status().await.pid;
 
+    // Write process-before-after.txt (matching Python router)
+    let timestamp = Utc::now().to_rfc3339();
+    state.evidence_writer.write_text(
+        "process-before-after.txt",
+        &format!(
+            "Before: PID={}\nAfter: PID={}\nProfile: {}\nTimestamp: {}\n",
+            old_pid.unwrap_or(0),
+            new_pid.unwrap_or(0),
+            alias,
+            timestamp,
+        ),
+    );
+
     match result {
         Ok(()) => {
             let response = json!({
@@ -453,7 +466,7 @@ async fn handle_restart(
                 "old_pid": old_pid,
                 "new_pid": new_pid,
                 "error": e,
-                "authority": "advisory_only",
+                    "authority": "advisory_only",
             });
             state.evidence_writer.write("restart-result.json", &resp);
             (StatusCode::SERVICE_UNAVAILABLE, Json(resp))
@@ -502,7 +515,7 @@ async fn handle_chat(
         profile.is_some(),
         is_healthy,
     ) {
-        state.evidence_writer.write("chat-refusal.json", &refusal);
+        state.evidence_writer.write("chat-refusal-authority.json", &refusal);
         return (StatusCode::FORBIDDEN, Json(refusal));
     }
 
@@ -520,7 +533,7 @@ async fn handle_chat(
                     "authority": "advisory_only",
                     "timestamp": Utc::now().to_rfc3339(),
                 });
-                state.evidence_writer.write("chat-refusal.json", &resp);
+                state.evidence_writer.write("chat-refusal-authority.json", &resp);
                 return (StatusCode::FORBIDDEN, Json(resp));
             }
         }
@@ -703,7 +716,21 @@ pub fn build_router(state: Arc<AppState>) -> Router {
         .layer(
             tower_http::cors::CorsLayer::permissive()
         )
+        .fallback(handle_404)
         .with_state(state)
+}
+
+/// 404 catch-all handler matching Python router's JSON error response shape.
+async fn handle_404(req: axum::extract::Request) -> (StatusCode, Json<Value>) {
+    let path = req.uri().path_and_query()
+        .map(|pq| pq.as_str())
+        .unwrap_or(req.uri().path());
+    (
+        StatusCode::NOT_FOUND,
+        Json(json!({
+            "error": format!("Not found: {}", path),
+        })),
+    )
 }
 
 /// Start the background health poller.

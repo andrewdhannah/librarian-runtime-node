@@ -162,9 +162,13 @@ impl BackendProcess {
         );
         info!("[{}] launching: {}", self.alias, cmd_str);
 
-        let log_path = format!("backend_{}.log", self.alias);
+        // Use logs/ subdirectory (matching Python router's log location).
+        // Create the directory if it doesn't exist.
+        let logs_dir = PathBuf::from("logs");
+        std::fs::create_dir_all(&logs_dir).ok();
+        let log_path = logs_dir.join(format!("backend_{}.log", self.alias));
         let log_file = std::fs::File::create(&log_path)
-            .map_err(|e| format!("Failed to create log file '{}': {}", log_path, e))?;
+            .map_err(|e| format!("Failed to create log file '{}': {}", log_path.display(), e))?;
 
         let child = Command::new(binary)
             .arg("-m")
