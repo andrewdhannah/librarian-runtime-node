@@ -486,11 +486,11 @@ async fn handle_chat(
     let verified_context = profile.map(|p| p.context).unwrap_or(1024);
 
     // Check refusal
-    let is_healthy = {
+    let (is_healthy, bp_for_identity) = {
         let backends = state.backends.lock().await;
         match backends.get(alias) {
-            Some(bp) => bp.get_state().await.is_healthy(),
-            None => false,
+            Some(bp) => (bp.get_state().await.is_healthy(), Some(bp.clone())),
+            None => (false, None),
         }
     };
 
@@ -504,6 +504,26 @@ async fn handle_chat(
     ) {
         state.evidence_writer.write("chat-refusal.json", &refusal);
         return (StatusCode::FORBIDDEN, Json(refusal));
+    }
+
+    // Identity verification: if backend is healthy, verify model identity
+    // before proxying (matches Python router's verify_identity flow)
+    if let Some(ref bp) = bp_for_identity {
+        if is_healthy {
+            let (identity_ok, identity_detail) = bp.verify_identity().await;
+            if !identity_ok {
+                let resp = json!({
+                    "status": "refused",
+                    "reason": "identity_mismatch",
+                    "detail": format!("Identity verification failed: {}", identity_detail),
+                    "profile": alias,
+                    "authority": "advisory_only",
+                    "timestamp": Utc::now().to_rfc3339(),
+                });
+                state.evidence_writer.write("chat-refusal.json", &resp);
+                return (StatusCode::FORBIDDEN, Json(resp));
+            }
+        }
     }
 
     // Proxy to backend
@@ -599,6 +619,19 @@ async fn handle_v1_chat(
             return (StatusCode::SERVICE_UNAVAILABLE, Json(resp));
         }
     };
+
+    // Identity verification before proxying
+    let backend_state = process.get_state().await;
+    if backend_state.is_healthy() {
+        let (identity_ok, identity_detail) = process.verify_identity().await;
+        if !identity_ok {
+            let resp = json!({
+                "error": format!("Identity verification failed: {}", identity_detail),
+                "authority": "advisory_only",
+            });
+            return (StatusCode::FORBIDDEN, Json(resp));
+        }
+    }
 
     let messages = body.messages.unwrap_or_default();
     if messages.is_empty() {

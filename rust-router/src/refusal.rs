@@ -113,12 +113,25 @@ pub fn check_chat(
         }));
     }
 
-    // Authority-bearing content
+    // Authority-bearing keyword categories — checked in priority order.
+    //
+    // Three distinct categories matching the contract specification:
+    //   1. authority_required       — approval/promotion/commitment keywords
+    //   2. file_mutation_forbidden  — edit/modify/write/promote keywords
+    //   3. autonomous_action_forbidden — autonomous/self-directed keywords
+    //
+    // Priority order: authority keywords are checked first (highest signal),
+    // then file mutation, then autonomous action.
+
     let authority_keywords = [
         "approve", "promote", "commit", "escalate", "authorize",
         "mark valid", "override policy", "ignore policy",
-        "autonomous", "self-directed", "automatic decision",
+    ];
+    let file_mutation_keywords = [
         "edit source", "modify file", "write to librarian",
+    ];
+    let autonomous_keywords = [
+        "autonomous", "self-directed", "automatic decision",
     ];
 
     let user_text: String = messages
@@ -129,13 +142,46 @@ pub fn check_chat(
         .join(" ")
         .to_lowercase();
 
+    // 1. Authority keywords
     for keyword in &authority_keywords {
         if user_text.contains(keyword) {
             return Some(json!({
                 "status": "refused",
                 "reason": "authority_required",
                 "detail": format!(
-                    "Request contains authority-bearing content ('{}'). Autonomous action is forbidden. The router is a dispatcher, not a decision-maker.",
+                    "Request contains authority-bearing content ('{}'). This request implies authority beyond advisory. Model output is advisory only.",
+                    keyword
+                ),
+                "authority": "advisory_only",
+                "timestamp": Utc::now().to_rfc3339(),
+            }));
+        }
+    }
+
+    // 2. File mutation keywords
+    for keyword in &file_mutation_keywords {
+        if user_text.contains(keyword) {
+            return Some(json!({
+                "status": "refused",
+                "reason": "file_mutation_forbidden",
+                "detail": format!(
+                    "Request contains file mutation content ('{}'). File mutation or promotion to Librarian directory is forbidden.",
+                    keyword
+                ),
+                "authority": "advisory_only",
+                "timestamp": Utc::now().to_rfc3339(),
+            }));
+        }
+    }
+
+    // 3. Autonomous action keywords
+    for keyword in &autonomous_keywords {
+        if user_text.contains(keyword) {
+            return Some(json!({
+                "status": "refused",
+                "reason": "autonomous_action_forbidden",
+                "detail": format!(
+                    "Request contains autonomous action content ('{}'). Autonomous action is forbidden. The router is a dispatcher, not a decision-maker.",
                     keyword
                 ),
                 "authority": "advisory_only",

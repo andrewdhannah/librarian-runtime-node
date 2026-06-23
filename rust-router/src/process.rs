@@ -359,13 +359,92 @@ impl BackendProcess {
         *count += 1;
         if *count >= 3 {
             let mut state = self.state.lock().await;
-            if *state == BackendState::Healthy {
-                *state = BackendState::Degraded;
-                *self.error_message.lock().await = Some("Consecutive health check failures".to_string());
-                warn!("[{}] degraded after {} health failures", self.alias, *count);
+            match *state {
+                BackendState::Healthy => {
+                    *state = BackendState::Degraded;
+                    *self.error_message.lock().await = Some("Consecutive health check failures".to_string());
+                    warn!("[{}] degraded after {} health failures", self.alias, *count);
+                }
+                BackendState::Degraded => {
+                    *state = BackendState::Failed;
+                    *self.error_message.lock().await = Some("Consecutive health check failures — state set to failed".to_string());
+                    warn!("[{}] failed after {} health failures while degraded", self.alias, *count);
+                }
+                _ => {}
             }
         }
         false
+    }
+
+    /// Verify model identity against /health and /v1/models.
+    ///
+    /// Checks that the backend's health endpoint reports the correct model alias
+    /// AND the /v1/models endpoint returns the matching model id.
+    /// Matches Python router's `ProcessManager.verify_identity()`.
+    ///
+    /// Returns (true, "") if identity matches, or (false, "detail message") on mismatch.
+    pub async fn verify_identity(&self) -> (bool, String) {
+        let health_timeout = Duration::from_secs(self.config.health_check_timeout_secs);
+
+        let client = match reqwest::Client::builder()
+            .timeout(health_timeout)
+            .build()
+        {
+            Ok(c) => c,
+            Err(e) => return (false, format!("Failed to create HTTP client: {}", e)),
+        };
+
+        // 1. Check /health reports correct model alias
+        let health_url = format!("http://127.0.0.1:{}/health", self.profile.port);
+        match client.get(&health_url).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                let body: serde_json::Value = resp.json().await.unwrap_or_default();
+                let reported_alias = body.get("model").and_then(|v| v.as_str()).unwrap_or("");
+                if !reported_alias.is_empty() && reported_alias != self.alias {
+                    let detail = format!(
+                        "/health reports '{}', expected '{}'",
+                        reported_alias, self.alias
+                    );
+                    return (false, detail);
+                }
+            }
+            Ok(resp) => {
+                return (false, format!("/health returned HTTP {}", resp.status()));
+            }
+            Err(e) => {
+                return (false, format!("/health request failed: {}", e));
+            }
+        }
+
+        // 2. Check /v1/models returns matching model id
+        let models_url = format!("http://127.0.0.1:{}/v1/models", self.profile.port);
+        match client.get(&models_url).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                let body: serde_json::Value = resp.json().await.unwrap_or_default();
+                let models_id = body
+                    .get("data")
+                    .and_then(|d| d.as_array())
+                    .and_then(|arr| arr.first())
+                    .and_then(|m| m.get("id"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                if !models_id.is_empty() && models_id != self.alias {
+                    let detail = format!(
+                        "/v1/models reports '{}', expected '{}'",
+                        models_id, self.alias
+                    );
+                    return (false, detail);
+                }
+            }
+            Ok(resp) => {
+                return (false, format!("/v1/models returned HTTP {}", resp.status()));
+            }
+            Err(e) => {
+                return (false, format!("/v1/models request failed: {}", e));
+            }
+        }
+
+        (true, String::new())
     }
 
     /// Proxy a chat request to the backend's OpenAI-compatible endpoint.
