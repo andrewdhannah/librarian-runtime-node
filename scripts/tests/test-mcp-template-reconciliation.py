@@ -527,6 +527,7 @@ ALLOWED_MODIFIED_PREFIXES = [
     "scripts/check-mcp-health.ps1",
     "scripts/tests/",
     "docs/sprints/",
+    "docs/operations/",
 ]
 unexpected = [
     f for f in modified_files
