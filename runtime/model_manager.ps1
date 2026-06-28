@@ -12,7 +12,7 @@
         switch <name>    - Stop chat server, start with named model
         start <name>     - Start chat server with named model (no stop)
         stop             - Stop chat server gracefully
-        embed-start      - Start embedding server on port 9122
+        embed-start      - Start embedding server on port 9125
         embed-stop       - Stop embedding server gracefully
         embed-status     - Show embedding server status
         diagnose         - Comprehensive system health check
@@ -37,6 +37,15 @@ param(
 $ErrorActionPreference = 'Continue'
 
 # ─── Paths and configuration ────────────────────────────────────────────────
+# Default paths/ports below. To override with machine-local values, create
+# config/model_manager.local.ps1 and re-define any variable from this block.
+# The local file is gitignored (config/*.local.json, also .ps1).
+# Do NOT commit machine-local paths to the tracked default set.
+#
+# NOTE: The launcher and model-profiles.json use 'llama-server.exe' from
+# the repo's runtime/llama.cpp/. This model_manager historically uses a
+# different build binary 'llama-server-mini.exe' from G:\llama.cpp\build_vs\.
+# These should be reconciled to use the same configured binary.
 
 $ServerPath   = "G:\llama.cpp\build_vs\bin\Release\llama-server-mini.exe"
 $ModelsDir    = "G:\llama.cpp\models"
@@ -45,15 +54,24 @@ $ContextSize  = 4096
 $MaxPredict   = 1024
 
 $EmbedModelPath = "G:\llamacpp\snowflake-arctic-embed-m-long-Q4_0.gguf"
-$EmbedPort      = 9122
+$EmbedPort      = 9125
 $EmbedContext   = 8192
 
 $PidDir         = "G:\temp"
-$ChatPidFile    = "$PidDir\llama_manager_9120.pid"
-$EmbedPidFile   = "$PidDir\llama_manager_9122.pid"
+$ChatPidFile    = "$PidDir\llama_manager_$($DefaultPort).pid"
+$EmbedPidFile   = "$PidDir\llama_manager_$($EmbedPort).pid"
 
 $StartupTimeoutSec = 180
 $PollIntervalSec   = 3
+
+# ─── Local config override ─────────────────────────────────────────────────
+# If config/model_manager.local.ps1 exists, dot-source it to override any
+# default path/port/setting defined above. This is gitignored.
+# Example: $ServerPath = "G:\Custom\Path\llama-server.exe"
+$LocalConfigPath = if ($PSScriptRoot) { Join-Path $PSScriptRoot "..\config\model_manager.local.ps1" } else { $null }
+if ($LocalConfigPath -and (Test-Path -LiteralPath $LocalConfigPath)) {
+    . $LocalConfigPath
+}
 
 # ─── Viable chat models ─────────────────────────────────────────────────────
 

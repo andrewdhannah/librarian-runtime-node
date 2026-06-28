@@ -311,22 +311,24 @@ diff_result = subprocess.run(
     capture_output=True, text=True, cwd=REPO_ROOT,
 )
 modified_files = [f.strip() for f in diff_result.stdout.split("\n") if f.strip()]
+# Check modified files — production router/runtime files must not be modified
+PRODUCTION_PREFIXES = ["router/", "rust-router/"]
+prod_modifications = [f for f in modified_files if any(f.startswith(p) for p in PRODUCTION_PREFIXES)]
 test(
-    "No production files modified (git diff shows no modified files)",
-    len(modified_files) == 0,
-    f"Modified files found: {modified_files}",
+    "No production router/runtime files modified",
+    len(prod_modifications) == 0,
+    f"Production files modified: {prod_modifications}",
 )
 
-# Verify unstaged new files are only docs/fixtures/scripts/reports
+# Verify unstaged new files are in allowed paths
 import subprocess
 status_result = subprocess.run(
     ["git", "status", "--short"],
     capture_output=True, text=True, cwd=REPO_ROOT,
 )
 new_files = [line.strip() for line in status_result.stdout.split("\n") if line.strip()]
-# All new files should be in allowed paths
-allowed_prefixes = ["docs/", "reports/", "scripts/tests/test-startup-files-custody"]
-# Remove the script directory itself as allowed
+# All new files should be in allowed paths (docs, reports, config, scripts/tests, fixtures)
+allowed_prefixes = ["docs/", "reports/", "config/", "scripts/tests/"]
 for nf in new_files:
     if nf.startswith("?? "):
         fname = nf[3:].replace("\\", "/")

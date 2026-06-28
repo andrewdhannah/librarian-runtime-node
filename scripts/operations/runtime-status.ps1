@@ -15,7 +15,7 @@
 $ErrorActionPreference = "Continue"
 $RepoRoot = "G:\OpenWork\librarian-runtime-node"
 $ServiceName = "LibrarianRunTimeNode"
-$RouterPort = 9130
+$RouterPort = if ($env:ROUTER_PORT) { [int]$env:ROUTER_PORT } else { 9130 }
 
 Write-Host "=== Librarian Runtime Node Status ===" -ForegroundColor Cyan
 Write-Host ""

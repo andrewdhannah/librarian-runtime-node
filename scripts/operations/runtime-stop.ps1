@@ -21,7 +21,7 @@
 
 $ErrorActionPreference = "Continue"
 $ServiceName = "LibrarianRunTimeNode"
-$RouterPort = 9130
+$RouterPort = if ($env:ROUTER_PORT) { [int]$env:ROUTER_PORT } else { 9130 }
 
 Write-Host "=== Runtime Stop ===" -ForegroundColor Cyan
 Write-Host ""

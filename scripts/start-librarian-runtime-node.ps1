@@ -26,7 +26,7 @@
   Authority: advisory_only
 #>
 
-$WorkDir = "G:\openwork\librarian-runtime-node"
+$WorkDir = "G:\OpenWork\librarian-runtime-node"
 $Port = 9130
 
 Set-Location -LiteralPath $WorkDir

@@ -18,7 +18,7 @@
 
 $ErrorActionPreference = "Continue"
 $ServiceName = "LibrarianRunTimeNode"
-$RouterPort = 9130
+$RouterPort = if ($env:ROUTER_PORT) { [int]$env:ROUTER_PORT } else { 9130 }
 $RuntimeNodePath = "G:\OpenWork\librarian-runtime-node"
 $MainLibrarianPath = "G:\OpenWork\TheLibrarian-main"
 
