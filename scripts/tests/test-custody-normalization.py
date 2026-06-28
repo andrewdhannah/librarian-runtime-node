@@ -66,8 +66,8 @@ AUTHORITATIVE_PORT_MAP = {
 }
 
 # Expected binary names
-EXPECTED_BACKEND_BINARY = "llama-server.exe"
-MODEL_MANAGER_ALTERNATE_BINARY = "llama-server-mini.exe"
+EXPECTED_BACKEND_BINARY = "llama-server.exe"  # authoritative — all operational surfaces agree
+MODEL_MANAGER_ALTERNATE_BINARY = "llama-server-mini.exe"  # historical — referenced in comments only
 
 # ---------------------------------------------------------------------------
 # Test results
@@ -280,15 +280,51 @@ if model_profiles.exists():
             f"Command starts with: {cmd[:50] if cmd else '(empty)'}",
         )
 
-# Check model_manager binary documentation
+# Check model_manager binary reconciliation
 if mm_content:
-    # Verify the binary documentation comment exists
-    has_binary_doc = ("llama-server-mini.exe" in mm_content and
-                      "llama-server.exe" in mm_content)
+    # Verify the default ServerPath resolves to llama-server.exe (authoritative)
+    server_path_lines = [l for l in mm_content.split('\n') if '$ServerPath' in l and '=' in l and l.strip().startswith('$')]
+    server_path_authoritative = any('llama-server.exe' in l for l in server_path_lines)
     test(
-        "[binary] model_manager.ps1 documents both binary names",
-        has_binary_doc,
-        "Missing documentation about llama-server vs llama-server-mini",
+        "[binary] model_manager.ps1 default ServerPath is llama-server.exe",
+        server_path_authoritative,
+        f"Default ServerPath lines: {server_path_lines}",
+    )
+    
+    # Verify the derived process name is used in operational code (not hardcoded)
+    uses_derived_name = (
+        '$ServerProcessName' in mm_content
+    )
+    test(
+        "[binary] model_manager.ps1 uses derived ServerProcessName",
+        uses_derived_name,
+        "Missing $ServerProcessName variable",
+    )
+    
+    # Verify Get-ServerProcess uses the variable, not a hardcoded name
+    has_var_process_ref = 'Get-Process -Name $ServerProcessName' in mm_content
+    test(
+        "[binary] Get-ServerProcess uses $ServerProcessName variable",
+        has_var_process_ref,
+        "Get-ServerProcess still uses hardcoded process name",
+    )
+    
+    # Verify the authority documentation comment exists
+    has_authority_doc = "AUTHORITATIVE BACKEND BINARY" in mm_content
+    test(
+        "[binary] model_manager.ps1 documents authoritative binary",
+        has_authority_doc,
+        "Missing AUTHORITATIVE BACKEND BINARY documentation",
+    )
+    
+    # Verify historical binary name only appears in comments, not operational code
+    operational_lines = [l for l in mm_content.split('\n')
+                         if not l.strip().startswith('#') and not l.strip().startswith('<#')]
+    mini_in_operational = any('llama-server-mini' in l for l in operational_lines)
+    test(
+        "[binary] No operational code references 'llama-server-mini'",
+        not mini_in_operational,
+        "Operational code still references llama-server-mini",
     )
 
 

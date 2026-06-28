@@ -2,7 +2,7 @@
 .SYNOPSIS
     Model Manager for llama.cpp on RX 570 -- hardened
 .DESCRIPTION
-    Manages llama-server-mini processes (chat + embedding).
+    Manages backend server processes (llama-server, chat + embedding).
     Supports identity validation, orphan cleanup, graceful shutdown,
     port conflict detection, pre-flight checks, and full diagnostics.
 
@@ -39,15 +39,17 @@ $ErrorActionPreference = 'Continue'
 # ─── Paths and configuration ────────────────────────────────────────────────
 # Default paths/ports below. To override with machine-local values, create
 # config/model_manager.local.ps1 and re-define any variable from this block.
-# The local file is gitignored (config/*.local.json, also .ps1).
+# The local file is gitignored (config/*.local.* pattern).
 # Do NOT commit machine-local paths to the tracked default set.
 #
-# NOTE: The launcher and model-profiles.json use 'llama-server.exe' from
-# the repo's runtime/llama.cpp/. This model_manager historically uses a
-# different build binary 'llama-server-mini.exe' from G:\llama.cpp\build_vs\.
-# These should be reconciled to use the same configured binary.
+# AUTHORITATIVE BACKEND BINARY: llama-server.exe
+# All tracked operational surfaces (launcher, model-profiles.json, ops scripts,
+# model_manager) use 'llama-server.exe' as the canonical binary name.
+# If you need a different binary (e.g., historical 'llama-server-mini.exe'),
+# override $ServerPath in config/model_manager.local.ps1.
 
-$ServerPath   = "G:\llama.cpp\build_vs\bin\Release\llama-server-mini.exe"
+$ServerPath   = if ($PSScriptRoot) { Join-Path $PSScriptRoot "llama.cpp\llama-server.exe" } else { "runtime\llama.cpp\llama-server.exe" }
+$ServerProcessName = [System.IO.Path]::GetFileNameWithoutExtension($ServerPath)
 $ModelsDir    = "G:\llama.cpp\models"
 $DefaultPort  = 9120
 $ContextSize  = 4096
@@ -68,6 +70,7 @@ $PollIntervalSec   = 3
 # If config/model_manager.local.ps1 exists, dot-source it to override any
 # default path/port/setting defined above. This is gitignored.
 # Example: $ServerPath = "G:\Custom\Path\llama-server.exe"
+# Example: $ServerPath = "G:\llama.cpp\build_vs\bin\Release\llama-server-mini.exe"
 $LocalConfigPath = if ($PSScriptRoot) { Join-Path $PSScriptRoot "..\config\model_manager.local.ps1" } else { $null }
 if ($LocalConfigPath -and (Test-Path -LiteralPath $LocalConfigPath)) {
     . $LocalConfigPath
@@ -151,7 +154,7 @@ function Remove-PidFile { param([int]$Port)
 # ─── Helper: process management ──────────────────────────────────────────
 
 function Get-ServerProcess {
-    Get-Process -Name 'llama-server-mini' -ErrorAction SilentlyContinue
+    Get-Process -Name $ServerProcessName -ErrorAction SilentlyContinue
 }
 
 function Get-ProcessByPort {
@@ -238,7 +241,7 @@ function Test-PortConflict {
         if ($conn.OwningProcess -eq 0) { return $null }
         $owner = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
         if (-not $owner) { return $null } # process no longer exists
-        if ($owner.ProcessName -eq 'llama-server-mini') { return $null } # our own process
+        if ($owner.ProcessName -eq $ServerProcessName) { return $null } # our own process
         return @{ ProcessName = $owner.ProcessName; ProcessId = $conn.OwningProcess }
     } catch { return $null }
 }
@@ -730,7 +733,7 @@ function Invoke-EmbedStart {
     } else {
         Write-Host "  [EMBEDDING_ROLE_FAILED] /v1/embeddings not available or returned no data" -ForegroundColor Red
         Write-Host "    Process alive, port open, but retrieval role is NOT operational." -ForegroundColor Red
-        Write-Host "    llama-server-mini.exe lacks --embedding flag support." -ForegroundColor Cyan
+        Write-Host "    ${ServerProcessName}.exe lacks --embedding flag support." -ForegroundColor Cyan
         Write-Host "    Server running on port $EmbedPort (PID $($p.Id)) but cannot serve embeddings." -ForegroundColor Yellow
     }
 }

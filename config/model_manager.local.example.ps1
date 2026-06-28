@@ -18,10 +18,14 @@
 #>
 
 # ─── Machine-local backend binary ──────────────────────────────────────────
-# Launcher and model-profiles.json use: runtime\llama.cpp\llama-server.exe
-# Default in model_manager.ps1 uses:    G:\llama.cpp\build_vs\bin\Release\llama-server-mini.exe
-# Uncomment and set to your local path:
+# AUTHORITATIVE BACKEND BINARY: llama-server.exe
+# The default in model_manager.ps1 uses: PSScriptRoot\llama.cpp\llama-server.exe
+# (resolves to: runtime/llama.cpp/llama-server.exe relative to the repo)
+#
+# If you need a different binary (e.g., historical 'llama-server-mini.exe' from
+# a separate build directory), uncomment and set your local path:
 # $ServerPath = "G:\OpenWork\librarian-runtime-node\runtime\llama.cpp\llama-server.exe"
+# $ServerPath = "G:\llama.cpp\build_vs\bin\Release\llama-server-mini.exe"
 
 # ─── Machine-local model directory ─────────────────────────────────────────
 # $ModelsDir = "G:\llama.cpp\models"
