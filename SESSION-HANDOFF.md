@@ -2,7 +2,7 @@
 
 > Quick summary for an agent or human picking up where the last session left off.
 > Root: `G:\OpenWork\librarian-runtime-node\`
-> Updated: 2026-06-23
+> Updated: 2026-06-29
 
 ## Repo Identity
 
@@ -20,8 +20,8 @@
 
 For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 
-**Current baseline:** librarian-runtime-node `e7cfe33`, TheLibrarian-main `1e32002`
-**Last sealed sprint:** WIN-RUNTIME-QUALIFICATION-1
+**Current baseline:** librarian-runtime-node `08a8602`, TheLibrarian-main `1e32002`
+**Last sealed sprint:** WIN-AGENT-HARNESS-ENV-BASELINE-1
 
 | Sprint | Status |
 |--------|--------|
@@ -37,8 +37,9 @@ For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 | WIN-RUNTIME-RECEIPT-CLEANUP-1 | ✅ Done |
 | WIN-RUNTIME-RECEIPTS-2 | ✅ Done |
 | WIN-RUNTIME-QUALIFICATION-1 | ✅ Done |
-| **WINDOWS-PC-PLAN-UPDATE-2** | **← Current sprint** |
-| **WIN-RUNTIME-OPERATIONS-1** | **← Next** |
+| WIN-RUNTIME-CONTROLLED-ACTIVATION-1 | ✅ Done |
+| **WIN-AGENT-HARNESS-ENV-BASELINE-1** | **✅ Done (this sprint)** |
+| **WIN-AGENT-HARNESS-PLAN-1** | **← Next** |
 
 ## Proof Chain Complete
 
@@ -55,15 +56,18 @@ The three-link runtime proof chain is sealed:
 - 48-check receipt verifier at `scripts/verify-receipt.ps1`
 - Integration proof v2 script at `scripts/run-integration-proof-v2.ps1`
 - Qualification scripts at `scripts/run-runtime-qualification.ps1` and `scripts/verify-runtime-qualification.ps1`
+- Full environment baseline at `docs/planning/WIN-AGENT-HARNESS-ENV-BASELINE-1-BASELINE.md`
+- 8 findings recorded for follow-up sprints (see baseline report)
 
 ## Current State (repos)
 
 ### librarian-runtime-node
-- **HEAD**: `e7cfe33` — `test(runtime): add rebuild qualification proof gate`
+- **HEAD**: `08a8602` — `docs(sprint): close WIN-RUNTIME-CONTROLLED-ACTIVATION-1 — PROMOTE`
 - **Working tree**: Clean ✅
 - **Service**: `LibrarianRunTimeNode` is Stopped / Manual ✅
 - **Port 9130**: Free ✅
 - **llama-server orphans**: None ✅
+- **Ahead of origin**: 20 commits (push pending)
 
 ### TheLibrarian-main
 - **HEAD**: `1e32002` — `feat(runtime): add integration proof receipts and verifier`
@@ -146,6 +150,50 @@ The three-link runtime proof chain is sealed:
 6. Do not weaken the network boundary
 7. If auth/token setup blocks proof, generate a temporary local token (do not ask Owner to paste secrets)
 8. Refer to `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md` for current sprint priority
+9. Consult `docs/planning/WIN-AGENT-HARNESS-ENV-BASELINE-1-BASELINE.md` for full machine environment reference
+10. Address or defer findings from baseline report (see Findings Register §24) before starting service-level work
+
+## Next Sprint Specification
+
+**WIN-AGENT-HARNESS-PLAN-1** — Create missing governing plan documents.
+
+### Why this comes next
+The baseline (WIN-AGENT-HARNESS-ENV-BASELINE-1) found 5 planning documents missing:
+- `WIN-AGENT-HARNESS-PLAN.md`
+- `WIN-CUSTODY-SANDBOX-MODEL.md`
+- `WIN-HARNESS-PARITY-ROADMAP.md`
+- `WIN-LIBRARIAN-HOST-OPTIONS.md`
+- `WIN-SPRINT-SEQUENCE.md`
+
+These are prerequisites for disciplined harness implementation. Without them, future PC work risks becoming ad hoc.
+
+### Findings that influence the plan
+- **F-001 (HIGH: C: drive 10 GB free)** — Should be classified as a gating risk before any model workload, long-running stability test, or large build/test cache. Does not block docs/planning.
+- **F-007 (INFO: Win 10 22H2 past EOS)** — Document as operational risk. Does not block local Phase 0 planning.
+
+### After WIN-AGENT-HARNESS-PLAN-1
+Either **WIN-DISK-SPACE-RISK-TRIAGE-1** (clear C: drive risk) or **WIN-PACKET-VALIDATION-HOOK-1** (continue harness implementation), depending on priority.
+
+### Suggested session prompt
+See `docs/sprints/WIN-AGENT-HARNESS-ENV-BASELINE-1.md` for the full suggested prompt for the next session.
+
+## Key Environment Facts (from Baseline)
+
+| Fact | Value |
+|------|-------|
+| Host | DESKTOP-ISNJ51B — MSI MS-7751 |
+| CPU | i5-3570K — 4 cores, 3.40 GHz |
+| RAM | 24.3 GB |
+| GPU | Radeon RX 570 4 GB (Vulkan) |
+| C: free space | **10.2 GB (9.2%) — CRITICAL** |
+| G: free space | 132.3 GB (28.5%) |
+| Local IP | 192.168.0.158/24 (Wi-Fi) |
+| PS version | 5.1 (no pwsh) |
+| Python | 3.14.3 |
+| Node | 24.14.0 |
+| Rust | 1.96.0 |
+| nssm | Not in PATH (available at `runtime/bin/nssm.exe`) |
+| Elevation | Non-admin (service control requires elevation) |
 
 ## Network Boundary Policy (do not weaken)
 
