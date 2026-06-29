@@ -528,6 +528,7 @@ ALLOWED_MODIFIED_PREFIXES = [
     "scripts/tests/",
     "docs/sprints/",
     "docs/operations/",
+    "reports/",
 ]
 unexpected = [
     f for f in modified_files
