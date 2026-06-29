@@ -20,8 +20,8 @@
 
 For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 
-**Current baseline:** librarian-runtime-node `08a8602`, TheLibrarian-main `1e32002`
-**Last sealed sprint:** WIN-AGENT-HARNESS-ENV-BASELINE-1
+**Current baseline:** librarian-runtime-node `7cc7d10`, TheLibrarian-main `1e32002`
+**Last sealed sprint:** WIN-AGENT-HARNESS-PLAN-1
 
 | Sprint | Status |
 |--------|--------|
@@ -38,8 +38,9 @@ For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 | WIN-RUNTIME-RECEIPTS-2 | ✅ Done |
 | WIN-RUNTIME-QUALIFICATION-1 | ✅ Done |
 | WIN-RUNTIME-CONTROLLED-ACTIVATION-1 | ✅ Done |
-| **WIN-AGENT-HARNESS-ENV-BASELINE-1** | **✅ Done (this sprint)** |
-| **WIN-AGENT-HARNESS-PLAN-1** | **← Next** |
+| WIN-AGENT-HARNESS-ENV-BASELINE-1 | ✅ Done |
+| WIN-AGENT-HARNESS-PLAN-1 | ✅ Done |
+| **WIN-PACKET-VALIDATION-HOOK-1** | **← Current sprint** |
 
 ## Proof Chain Complete
 
@@ -62,12 +63,14 @@ The three-link runtime proof chain is sealed:
 ## Current State (repos)
 
 ### librarian-runtime-node
-- **HEAD**: `08a8602` — `docs(sprint): close WIN-RUNTIME-CONTROLLED-ACTIVATION-1 — PROMOTE`
+- **HEAD**: `7cc7d10` — `WIN-AGENT-HARNESS-PLAN-1 planning docs`
 - **Working tree**: Clean ✅
 - **Service**: `LibrarianRunTimeNode` is Stopped / Manual ✅
 - **Port 9130**: Free ✅
+- **Ports 9120-9125**: Free ✅
 - **llama-server orphans**: None ✅
-- **Ahead of origin**: 20 commits (push pending)
+- **rust-router orphans**: None ✅
+- **Ahead of origin**: 0 commits (up to date) ✅
 
 ### TheLibrarian-main
 - **HEAD**: `1e32002` — `feat(runtime): add integration proof receipts and verifier`
@@ -122,6 +125,7 @@ The three-link runtime proof chain is sealed:
 | `scripts/verify-runtime-qualification.ps1` | Qualification gate verifier |
 | `scripts/start-librarian-runtime-node.ps1` | Service launcher (Rust primary, Python fallback) |
 | `scripts/test-rust-router-endpoints.ps1` | 15-test endpoint suite |
+| `scripts/harness/pre-mutation-check.ps1` | Pre-mutation custody gate (11 checks, exit 0/1) |
 | `.gitignore` | Exclusion policy for models, logs, secrets |
 
 ### TheLibrarian-main
@@ -155,27 +159,28 @@ The three-link runtime proof chain is sealed:
 
 ## Next Sprint Specification
 
-**WIN-AGENT-HARNESS-PLAN-1** — Create missing governing plan documents.
+**WIN-HARNESS-POSTFLIGHT-1** — Build post-flight state verification and receipt generation.
 
 ### Why this comes next
-The baseline (WIN-AGENT-HARNESS-ENV-BASELINE-1) found 5 planning documents missing:
-- `WIN-AGENT-HARNESS-PLAN.md`
-- `WIN-CUSTODY-SANDBOX-MODEL.md`
-- `WIN-HARNESS-PARITY-ROADMAP.md`
-- `WIN-LIBRARIAN-HOST-OPTIONS.md`
-- `WIN-SPRINT-SEQUENCE.md`
+The pre-mutation hook (`WIN-PACKET-VALIDATION-HOOK-1`) is now complete. The custody sandbox model
+(`docs/planning/WIN-CUSTODY-SANDBOX-MODEL.md`) defines a pre-flight + post-flight cycle. The pre-flight
+gate exists; the post-flight gate is the natural next step to complete the cycle.
 
-These are prerequisites for disciplined harness implementation. Without them, future PC work risks becoming ad hoc.
+### After WIN-PACKET-VALIDATION-HOOK-1
+- **WIN-HARNESS-POSTFLIGHT-1** (recommended): post-flight state verification after sprint mutations
+- **WIN-HARNESS-CONTRACT-RUNNER-1**: unified contract test runner wrapping existing test scripts
+- **WIN-HARNESS-RECEIPT-TEMPLATE-1**: standardized sprint receipt generation
 
-### Findings that influence the plan
-- **F-001 (HIGH: C: drive 10 GB free)** — Should be classified as a gating risk before any model workload, long-running stability test, or large build/test cache. Does not block docs/planning.
-- **F-007 (INFO: Win 10 22H2 past EOS)** — Document as operational risk. Does not block local Phase 0 planning.
+### Harness tool now available
+`scripts/harness/pre-mutation-check.ps1` — Run before any mutation to verify environment is safe.
+Exit code 0 = PASS (safe to proceed), exit code 1 = FAIL (do not mutate).
 
-### After WIN-AGENT-HARNESS-PLAN-1
-Either **WIN-DISK-SPACE-RISK-TRIAGE-1** (clear C: drive risk) or **WIN-PACKET-VALIDATION-HOOK-1** (continue harness implementation), depending on priority.
+```powershell
+.\scripts\harness\pre-mutation-check.ps1 -ExpectedHead "<current HEAD>"
+```
 
 ### Suggested session prompt
-See `docs/sprints/WIN-AGENT-HARNESS-ENV-BASELINE-1.md` for the full suggested prompt for the next session.
+See `docs/sprints/WIN-PACKET-VALIDATION-HOOK-1.md` for sprint specification.
 
 ## Key Environment Facts (from Baseline)
 
