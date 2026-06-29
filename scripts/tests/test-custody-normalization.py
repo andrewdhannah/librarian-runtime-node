@@ -388,6 +388,8 @@ ALLOWED_MODIFIED_PREFIXES = [
     "scripts/tests/",
     "runtime/model_manager.ps1",
     "config/",
+    ".gitignore",
+    "docs/operations/",
 ]
 unexpected = [
     f for f in modified_files

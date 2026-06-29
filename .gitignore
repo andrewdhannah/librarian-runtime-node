@@ -33,7 +33,7 @@ temp/
 .env
 *.secret
 secrets/
-config/*.local.json
+config/*.local.*
 config/runtime-node.local.json
 
 # === Windows build artifacts ===

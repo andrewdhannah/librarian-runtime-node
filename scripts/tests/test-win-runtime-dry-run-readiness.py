@@ -63,6 +63,7 @@ RUNBOOK_REFERENCED_FILES = [
     "config/model_manager.local.example.ps1",
     "config/runtime-node.example.json",
     "config/runtime-node.local.json",
+    "config/mcp-permissions.json",
     "mcp/templates/mcp-server.example.json",
     "fixtures/startup-files-custody/startup-custody-manifest.example.json",
     "fixtures/startup-files-custody/machine-local-config.example.json",

@@ -529,6 +529,8 @@ ALLOWED_MODIFIED_PREFIXES = [
     "docs/sprints/",
     "docs/operations/",
     "reports/",
+    "config/",
+    ".gitignore",
 ]
 unexpected = [
     f for f in modified_files

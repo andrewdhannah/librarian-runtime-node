@@ -545,7 +545,7 @@ If **any** of the following is true, stop and resolve before proceeding:
 | llama-3.2 | 9122 | `config/model-profiles.json` |
 | qwen3 | 9123 | `config/model-profiles.json` |
 | gemma-3 | 9124 | `config/model-profiles.json` |
-| Embedding | 9125 | `config/model-profiles.json` |
+| Embedding | 9125 | `runtime/model_manager.ps1` → `$EmbedPort` |
 
 ### 11.2 Binary Authority
 
@@ -573,6 +573,7 @@ If **any** of the following is true, stop and resolve before proceeding:
 | Env var | `LIBRARIAN_MCP_URL` |
 | Health check script | `scripts/check-mcp-health.ps1` |
 | Stdio bridge script | `scripts/mcp-bridge.ps1` |
+| Permission matrix | `config/mcp-permissions.json` |
 
 ### 11.5 Config File Sources
 
@@ -587,6 +588,7 @@ If **any** of the following is true, stop and resolve before proceeding:
 | `config/runtime-node.local.json` | Machine-local runtime config | Yes |
 | `fixtures/startup-files-custody/machine-local-config.example.json` | Example custody config | No |
 | `fixtures/startup-files-custody/startup-custody-manifest.example.json` | Reference manifest | No |
+| `config/mcp-permissions.json` | MCP tool permission matrix | No |
 | `mcp/templates/mcp-server.example.json` | MCP server config templates | No |
 
 ---
