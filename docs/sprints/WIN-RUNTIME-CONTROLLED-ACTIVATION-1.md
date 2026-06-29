@@ -1,6 +1,6 @@
 # WIN-RUNTIME-CONTROLLED-ACTIVATION-1
 
-**Status:** ACTIVE
+**Status:** CLOSED — PROMOTE
 **Previous sprint:** WIN-RUNTIME-DRY-RUN-GAP-CLOSE-1 (PROMOTED)
 **Repo:** `librarian-runtime-node`
 **Platform:** Windows (PowerShell 5.1+)
