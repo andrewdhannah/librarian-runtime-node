@@ -20,8 +20,8 @@
 
 For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 
-**Current baseline:** librarian-runtime-node `7cc7d10`, TheLibrarian-main `1e32002`
-**Last sealed sprint:** WIN-AGENT-HARNESS-PLAN-1
+**Current baseline:** librarian-runtime-node `d3ea60c`, TheLibrarian-main `1e32002`
+**Last sealed sprint:** WIN-PACKET-VALIDATION-HOOK-1
 
 | Sprint | Status |
 |--------|--------|
@@ -40,7 +40,8 @@ For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 | WIN-RUNTIME-CONTROLLED-ACTIVATION-1 | ✅ Done |
 | WIN-AGENT-HARNESS-ENV-BASELINE-1 | ✅ Done |
 | WIN-AGENT-HARNESS-PLAN-1 | ✅ Done |
-| **WIN-PACKET-VALIDATION-HOOK-1** | **← Current sprint** |
+| WIN-PACKET-VALIDATION-HOOK-1 | ✅ Done |
+| **WIN-PC-REMAINING-SPRINTS-PLAN-1** | **← Current sprint** |
 
 ## Proof Chain Complete
 
@@ -63,7 +64,7 @@ The three-link runtime proof chain is sealed:
 ## Current State (repos)
 
 ### librarian-runtime-node
-- **HEAD**: `7cc7d10` — `WIN-AGENT-HARNESS-PLAN-1 planning docs`
+- **HEAD**: `d3ea60c` — `feat(harness): implement WIN-PACKET-VALIDATION-HOOK-1 pre-mutation custody gate`
 - **Working tree**: Clean ✅
 - **Service**: `LibrarianRunTimeNode` is Stopped / Manual ✅
 - **Port 9130**: Free ✅
@@ -126,6 +127,8 @@ The three-link runtime proof chain is sealed:
 | `scripts/start-librarian-runtime-node.ps1` | Service launcher (Rust primary, Python fallback) |
 | `scripts/test-rust-router-endpoints.ps1` | 15-test endpoint suite |
 | `scripts/harness/pre-mutation-check.ps1` | Pre-mutation custody gate (11 checks, exit 0/1) |
+| `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` | Full remaining sprint map (20 sprints, 5 phases) |
+| `docs/planning/WIN-PC-SPRINT-GUARDRAIL-NEEDS.md` | 13 guardrail categories, 4 profile classifications |
 | `.gitignore` | Exclusion policy for models, logs, secrets |
 
 ### TheLibrarian-main
@@ -162,16 +165,18 @@ The three-link runtime proof chain is sealed:
 **WIN-HARNESS-POSTFLIGHT-1** — Build post-flight state verification and receipt generation.
 
 ### Why this comes next
-The pre-mutation hook (`WIN-PACKET-VALIDATION-HOOK-1`) is now complete. The custody sandbox model
-(`docs/planning/WIN-CUSTODY-SANDBOX-MODEL.md`) defines a pre-flight + post-flight cycle. The pre-flight
-gate exists; the post-flight gate is the natural next step to complete the cycle.
+The pre-mutation hook (`WIN-PACKET-VALIDATION-HOOK-1`) is sealed at `d3ea60c`. The custody sandbox
+model (`docs/planning/WIN-CUSTODY-SANDBOX-MODEL.md`) defines a pre-flight + post-flight cycle.
+The pre-flight gate exists; the post-flight gate is the natural next step to complete the cycle.
+The full remaining sprint map is defined in `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` (S-01).
 
-### After WIN-PACKET-VALIDATION-HOOK-1
+### After WIN-PC-REMAINING-SPRINTS-PLAN-1
 - **WIN-HARNESS-POSTFLIGHT-1** (recommended): post-flight state verification after sprint mutations
-- **WIN-HARNESS-CONTRACT-RUNNER-1**: unified contract test runner wrapping existing test scripts
 - **WIN-HARNESS-RECEIPT-TEMPLATE-1**: standardized sprint receipt generation
+- **WIN-HARNESS-CONTRACT-RUNNER-1**: unified contract test runner wrapping existing test scripts
+- **WIN-HARNESS-BASELINE-DIFF-1**: baseline drift detection tool
 
-### Harness tool now available
+### Harness tool available
 `scripts/harness/pre-mutation-check.ps1` — Run before any mutation to verify environment is safe.
 Exit code 0 = PASS (safe to proceed), exit code 1 = FAIL (do not mutate).
 
@@ -180,7 +185,8 @@ Exit code 0 = PASS (safe to proceed), exit code 1 = FAIL (do not mutate).
 ```
 
 ### Suggested session prompt
-See `docs/sprints/WIN-PACKET-VALIDATION-HOOK-1.md` for sprint specification.
+See `docs/sprints/WIN-PC-REMAINING-SPRINTS-PLAN-1.md` for sprint specification.
+See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining sprint map.
 
 ## Key Environment Facts (from Baseline)
 
