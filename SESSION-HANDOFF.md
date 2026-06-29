@@ -20,8 +20,8 @@
 
 For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 
-**Current baseline:** librarian-runtime-node `d3ea60c`, TheLibrarian-main `1e32002`
-**Last sealed sprint:** WIN-PACKET-VALIDATION-HOOK-1
+**Current baseline:** librarian-runtime-node `6b1abf2`, TheLibrarian-main `1e32002`
+**Last sealed sprint:** WIN-PC-REMAINING-SPRINTS-PLAN-1
 
 | Sprint | Status |
 |--------|--------|
@@ -41,7 +41,8 @@ For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 | WIN-AGENT-HARNESS-ENV-BASELINE-1 | ✅ Done |
 | WIN-AGENT-HARNESS-PLAN-1 | ✅ Done |
 | WIN-PACKET-VALIDATION-HOOK-1 | ✅ Done |
-| **WIN-PC-REMAINING-SPRINTS-PLAN-1** | **← Current sprint** |
+| WIN-PC-REMAINING-SPRINTS-PLAN-1 | ✅ Done |
+| **WIN-HARNESS-POSTFLIGHT-1** | **← Current sprint** |
 
 ## Proof Chain Complete
 
@@ -64,7 +65,7 @@ The three-link runtime proof chain is sealed:
 ## Current State (repos)
 
 ### librarian-runtime-node
-- **HEAD**: `d3ea60c` — `feat(harness): implement WIN-PACKET-VALIDATION-HOOK-1 pre-mutation custody gate`
+- **HEAD**: `6b1abf2` — `docs(plan): create WIN-PC-REMAINING-SPRINTS-PLAN-1 remaining sprint map`
 - **Working tree**: Clean ✅
 - **Service**: `LibrarianRunTimeNode` is Stopped / Manual ✅
 - **Port 9130**: Free ✅
@@ -127,6 +128,7 @@ The three-link runtime proof chain is sealed:
 | `scripts/start-librarian-runtime-node.ps1` | Service launcher (Rust primary, Python fallback) |
 | `scripts/test-rust-router-endpoints.ps1` | 15-test endpoint suite |
 | `scripts/harness/pre-mutation-check.ps1` | Pre-mutation custody gate (11 checks, exit 0/1) |
+| `scripts/harness/postflight-check.ps1` | Post-flight verification + deterministic receipt output (14 checks) |
 | `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` | Full remaining sprint map (20 sprints, 5 phases) |
 | `docs/planning/WIN-PC-SPRINT-GUARDRAIL-NEEDS.md` | 13 guardrail categories, 4 profile classifications |
 | `.gitignore` | Exclusion policy for models, logs, secrets |
@@ -162,27 +164,36 @@ The three-link runtime proof chain is sealed:
 
 ## Next Sprint Specification
 
-**WIN-HARNESS-POSTFLIGHT-1** — Build post-flight state verification and receipt generation.
+**WIN-HARNESS-RECEIPT-TEMPLATE-1** — Standardized sprint receipt generation tool.
 
 ### Why this comes next
-The pre-mutation hook (`WIN-PACKET-VALIDATION-HOOK-1`) is sealed at `d3ea60c`. The custody sandbox
-model (`docs/planning/WIN-CUSTODY-SANDBOX-MODEL.md`) defines a pre-flight + post-flight cycle.
-The pre-flight gate exists; the post-flight gate is the natural next step to complete the cycle.
-The full remaining sprint map is defined in `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` (S-01).
+The pre/post-flight custody loop is now complete:
+- Pre-flight: `scripts/harness/pre-mutation-check.ps1` (WIN-PACKET-VALIDATION-HOOK-1)
+- Post-flight: `scripts/harness/postflight-check.ps1` (WIN-HARNESS-POSTFLIGHT-1)
 
-### After WIN-PC-REMAINING-SPRINTS-PLAN-1
-- **WIN-HARNESS-POSTFLIGHT-1** (recommended): post-flight state verification after sprint mutations
-- **WIN-HARNESS-RECEIPT-TEMPLATE-1**: standardized sprint receipt generation
+The next step is to automate receipt generation so that every sprint produces a consistent,
+machine-readable closeout record without manual markdown receipt writing.
+
+See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining sprint map.
+
+### After WIN-HARNESS-POSTFLIGHT-1
+- **WIN-HARNESS-RECEIPT-TEMPLATE-1** (recommended): automated receipt generation
 - **WIN-HARNESS-CONTRACT-RUNNER-1**: unified contract test runner wrapping existing test scripts
 - **WIN-HARNESS-BASELINE-DIFF-1**: baseline drift detection tool
 
-### Harness tool available
-`scripts/harness/pre-mutation-check.ps1` — Run before any mutation to verify environment is safe.
-Exit code 0 = PASS (safe to proceed), exit code 1 = FAIL (do not mutate).
+### Harness tools available
 
+**Pre-flight gate:**
 ```powershell
 .\scripts\harness\pre-mutation-check.ps1 -ExpectedHead "<current HEAD>"
 ```
+
+**Post-flight verification:**
+```powershell
+.\scripts\harness\postflight-check.ps1 -SprintId "WIN-MY-SPRINT" -StartingHead "<starting HEAD>"
+```
+
+Exit code 0 = PASS, exit code 1 = FAIL for both tools.
 
 ### Suggested session prompt
 See `docs/sprints/WIN-PC-REMAINING-SPRINTS-PLAN-1.md` for sprint specification.
