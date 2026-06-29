@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     MCP Connection Healthcheck for The Librarian (Windows / PowerShell)
 
@@ -19,10 +19,10 @@
 
 .NOTES
     Exit codes:
-      0 — All OK
-      1 — Server unreachable
-      2 — MCP endpoint unreachable
-      3 — Tools missing
+      0 -- All OK
+      1 -- Server unreachable
+      2 -- MCP endpoint unreachable
+      3 -- Tools missing
     Platform: Windows (PowerShell 5.1+)
     See also: scripts/mcp-bridge.ps1 for the stdio bridge.
 #>
@@ -78,11 +78,11 @@ try {
         Log "Server health: OK"
     }
     else {
-        Log "Server health: UNEXPECTED RESPONSE — status=$($health.status)"
+        Log "Server health: UNEXPECTED RESPONSE -- status=$($health.status)"
     }
 }
 catch {
-    Log "Server health: UNREACHABLE — $_"
+    Log "Server health: UNREACHABLE -- $_"
 }
 
 # ---------------------------------------------------------------------------
@@ -127,7 +127,7 @@ try {
         }
     }
     catch {
-        Log "JSON-RPC initialize: not supported or error — $_"
+        Log "JSON-RPC initialize: not supported or error -- $_"
     }
 
     # -----------------------------------------------------------------------
@@ -173,7 +173,7 @@ try {
     }
 }
 catch {
-    Log "MCP endpoint: UNREACHABLE — $_"
+    Log "MCP endpoint: UNREACHABLE -- $_"
 }
 
 # ---------------------------------------------------------------------------
@@ -216,11 +216,11 @@ if ($permsFile) {
         }
         else {
             $permsOk = $false
-            Log "Permission matrix: INVALID — $($errors -join '; ')"
+            Log "Permission matrix: INVALID -- $($errors -join '; ')"
         }
     }
     catch {
-        Log "Permission matrix: parse error — $_"
+        Log "Permission matrix: parse error -- $_"
     }
 }
 else {
