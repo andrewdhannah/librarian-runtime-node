@@ -20,8 +20,8 @@
 
 For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 
-**Current baseline:** librarian-runtime-node `6b1abf2`, TheLibrarian-main `1e32002`
-**Last sealed sprint:** WIN-PC-REMAINING-SPRINTS-PLAN-1
+**Current baseline:** librarian-runtime-node `4f84852`, TheLibrarian-main `1e32002`
+**Last sealed sprint:** WIN-HARNESS-POSTFLIGHT-1
 
 | Sprint | Status |
 |--------|--------|
@@ -42,7 +42,8 @@ For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 | WIN-AGENT-HARNESS-PLAN-1 | ✅ Done |
 | WIN-PACKET-VALIDATION-HOOK-1 | ✅ Done |
 | WIN-PC-REMAINING-SPRINTS-PLAN-1 | ✅ Done |
-| **WIN-HARNESS-POSTFLIGHT-1** | **← Current sprint** |
+| WIN-HARNESS-POSTFLIGHT-1 | ✅ Done |
+| **WIN-HARNESS-RECEIPT-TEMPLATE-1** | **← Current sprint** |
 
 ## Proof Chain Complete
 
@@ -65,7 +66,7 @@ The three-link runtime proof chain is sealed:
 ## Current State (repos)
 
 ### librarian-runtime-node
-- **HEAD**: `6b1abf2` — `docs(plan): create WIN-PC-REMAINING-SPRINTS-PLAN-1 remaining sprint map`
+- **HEAD**: `4f84852` — `WIN-HARNESS-POSTFLIGHT-1 post-flight verification`
 - **Working tree**: Clean ✅
 - **Service**: `LibrarianRunTimeNode` is Stopped / Manual ✅
 - **Port 9130**: Free ✅
@@ -129,6 +130,7 @@ The three-link runtime proof chain is sealed:
 | `scripts/test-rust-router-endpoints.ps1` | 15-test endpoint suite |
 | `scripts/harness/pre-mutation-check.ps1` | Pre-mutation custody gate (11 checks, exit 0/1) |
 | `scripts/harness/postflight-check.ps1` | Post-flight verification + deterministic receipt output (14 checks) |
+| `scripts/harness/new-sprint-receipt.ps1` | Standardized sprint receipt generator (Markdown, deterministic, postflight JSON ingestion) |
 | `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` | Full remaining sprint map (20 sprints, 5 phases) |
 | `docs/planning/WIN-PC-SPRINT-GUARDRAIL-NEEDS.md` | 13 guardrail categories, 4 profile classifications |
 | `.gitignore` | Exclusion policy for models, logs, secrets |
@@ -164,22 +166,23 @@ The three-link runtime proof chain is sealed:
 
 ## Next Sprint Specification
 
-**WIN-HARNESS-RECEIPT-TEMPLATE-1** — Standardized sprint receipt generation tool.
+**WIN-HARNESS-CONTRACT-RUNNER-1** — Unified contract test runner wrapping existing test scripts.
 
 ### Why this comes next
-The pre/post-flight custody loop is now complete:
+The three-tool harness core is now complete:
 - Pre-flight: `scripts/harness/pre-mutation-check.ps1` (WIN-PACKET-VALIDATION-HOOK-1)
 - Post-flight: `scripts/harness/postflight-check.ps1` (WIN-HARNESS-POSTFLIGHT-1)
+- Receipt generation: `scripts/harness/new-sprint-receipt.ps1` (this sprint)
 
-The next step is to automate receipt generation so that every sprint produces a consistent,
-machine-readable closeout record without manual markdown receipt writing.
+The next step is a unified contract test runner that wraps the existing 50+ test scripts
+into a single harness action with structured pass/fail output.
 
 See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining sprint map.
 
-### After WIN-HARNESS-POSTFLIGHT-1
-- **WIN-HARNESS-RECEIPT-TEMPLATE-1** (recommended): automated receipt generation
-- **WIN-HARNESS-CONTRACT-RUNNER-1**: unified contract test runner wrapping existing test scripts
+### After WIN-HARNESS-RECEIPT-TEMPLATE-1
+- **WIN-HARNESS-CONTRACT-RUNNER-1** (recommended): unified contract test runner
 - **WIN-HARNESS-BASELINE-DIFF-1**: baseline drift detection tool
+- **WIN-SPRINT-LEDGER-1**: sprint ledger convention
 
 ### Harness tools available
 
@@ -193,7 +196,15 @@ See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining spri
 .\scripts\harness\postflight-check.ps1 -SprintId "WIN-MY-SPRINT" -StartingHead "<starting HEAD>"
 ```
 
-Exit code 0 = PASS, exit code 1 = FAIL for both tools.
+**Receipt generator:**
+```powershell
+.\scripts\harness\new-sprint-receipt.ps1 -SprintId "WIN-MY-SPRINT" -Status "PASS" `
+  -StartingHead "<start>" -EndingHead "<end>" -PreviousSprint "WIN-PRIOR" `
+  -OutputPath "docs/receipts/WIN-MY-SPRINT-RECEIPT.md" `
+  -NextSprint "WIN-NEXT" -NextSprintRationale "Rationale."
+```
+
+Exit code 0 = PASS, exit code 1 = FAIL for all three tools.
 
 ### Suggested session prompt
 See `docs/sprints/WIN-PC-REMAINING-SPRINTS-PLAN-1.md` for sprint specification.
