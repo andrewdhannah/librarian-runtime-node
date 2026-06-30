@@ -21,7 +21,7 @@
 For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 
 **Current baseline:** librarian-runtime-node `85060f8`, TheLibrarian-main `1e32002`
-**Last sealed sprint:** WIN-HARNESS-CONTRACT-RUNNER-1
+**Last sealed sprint:** WIN-HARNESS-BASELINE-DIFF-1
 
 | Sprint | Status |
 |--------|--------|
@@ -45,7 +45,8 @@ For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 | WIN-HARNESS-POSTFLIGHT-1 | ✅ Done |
 | WIN-HARNESS-RECEIPT-TEMPLATE-1 | ✅ Done |
 | WIN-HARNESS-CONTRACT-RUNNER-1 | ✅ Done |
-| **WIN-HARNESS-BASELINE-DIFF-1** | **← Current sprint (ready for review)** |
+| WIN-HARNESS-BASELINE-DIFF-1 | ✅ Done |
+| **WIN-RUST-TOOLCHAIN-DRIFT-TRIAGE-1** | **← Current sprint (ready for review)** |
 
 ## Proof Chain Complete
 
@@ -171,27 +172,27 @@ The three-link runtime proof chain is sealed:
 
 ## Next Sprint Specification
 
-**WIN-SPRINT-LEDGER-1** — Sprint ledger convention. Create a machine-parseable
-sprint ledger for automated sprint tracking and audit.
+**WIN-RUST-PATH-RESTORE-1** — Restore the missing rustup proxy shim directory
+(`%USERPROFILE%\.cargo\bin\`) to make `rustc`/`cargo` accessible from shell PATH.
 
 ### Why this comes next
-The five-tool harness core is now complete:
-- Pre-flight: `scripts/harness/pre-mutation-check.ps1` (WIN-PACKET-VALIDATION-HOOK-1)
-- Post-flight: `scripts/harness/postflight-check.ps1` (WIN-HARNESS-POSTFLIGHT-1)
-- Receipt generation: `scripts/harness/new-sprint-receipt.ps1` (WIN-HARNESS-RECEIPT-TEMPLATE-1)
-- Contract runner: `scripts/harness/run-contract-checks.ps1` (WIN-HARNESS-CONTRACT-RUNNER-1)
-- Baseline drift detection: `scripts/harness/baseline-diff.ps1` (WIN-HARNESS-BASELINE-DIFF-1)
+The six-tool harness core is now complete:
+- Pre-flight: `scripts/harness/pre-mutation-check.ps1`
+- Post-flight: `scripts/harness/postflight-check.ps1`
+- Receipt generation: `scripts/harness/new-sprint-receipt.ps1`
+- Contract runner: `scripts/harness/run-contract-checks.ps1`
+- Baseline drift detection: `scripts/harness/baseline-diff.ps1`
+- Drift triage (this sprint): confirmed Rust toolchain 1.96.0 intact but shim layer missing
 
-The next logical step is a formal sprint ledger — a machine-parseable record of
-all sprints with their status, HEADs, and findings — enabling automated sprint
-tracking and audit.
+The next step is the repair: recreate `.cargo\bin\` proxy shims via `rustup toolchain link`
+or equivalent, then verify `baseline-diff -Section rust_version` reports OK.
 
 See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining sprint map.
 
-### After WIN-HARNESS-BASELINE-DIFF-1
-- **WIN-SPRINT-LEDGER-1** (recommended): sprint ledger convention
+### After WIN-RUST-TOOLCHAIN-DRIFT-TRIAGE-1
+- **WIN-RUST-PATH-RESTORE-1** (recommended): recreate rustup proxy shim directory
+- **WIN-SPRINT-LEDGER-1**: sprint ledger convention
 - **WIN-AGENT-HARNESS-CLEANUP-1**: C: drive space cleanup
-- **WIN-HARNESS-PARITY-ROADMAP-1**: harness parity roadmap update
 
 ### Harness tools available
 
