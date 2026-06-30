@@ -2,7 +2,7 @@
 
 > Quick summary for an agent or human picking up where the last session left off.
 > Root: `G:\OpenWork\librarian-runtime-node\`
-> Updated: 2026-06-29
+> Updated: 2026-06-30
 
 ## Repo Identity
 
@@ -20,8 +20,8 @@
 
 For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 
-**Current baseline:** librarian-runtime-node `4f84852`, TheLibrarian-main `1e32002`
-**Last sealed sprint:** WIN-HARNESS-POSTFLIGHT-1
+**Current baseline:** librarian-runtime-node `85060f8`, TheLibrarian-main `1e32002`
+**Last sealed sprint:** WIN-HARNESS-RECEIPT-TEMPLATE-1
 
 | Sprint | Status |
 |--------|--------|
@@ -43,7 +43,8 @@ For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 | WIN-PACKET-VALIDATION-HOOK-1 | ✅ Done |
 | WIN-PC-REMAINING-SPRINTS-PLAN-1 | ✅ Done |
 | WIN-HARNESS-POSTFLIGHT-1 | ✅ Done |
-| **WIN-HARNESS-RECEIPT-TEMPLATE-1** | **← Current sprint** |
+| WIN-HARNESS-RECEIPT-TEMPLATE-1 | ✅ Done |
+| **WIN-HARNESS-CONTRACT-RUNNER-1** | **← Current sprint (ready for review)** |
 
 ## Proof Chain Complete
 
@@ -66,8 +67,8 @@ The three-link runtime proof chain is sealed:
 ## Current State (repos)
 
 ### librarian-runtime-node
-- **HEAD**: `4f84852` — `WIN-HARNESS-POSTFLIGHT-1 post-flight verification`
-- **Working tree**: Clean ✅
+- **HEAD**: `85060f8` — `WIN-HARNESS-RECEIPT-TEMPLATE-1 receipt generator`
+- **Working tree**: Clean (after commit) ✅
 - **Service**: `LibrarianRunTimeNode` is Stopped / Manual ✅
 - **Port 9130**: Free ✅
 - **Ports 9120-9125**: Free ✅
@@ -131,6 +132,7 @@ The three-link runtime proof chain is sealed:
 | `scripts/harness/pre-mutation-check.ps1` | Pre-mutation custody gate (11 checks, exit 0/1) |
 | `scripts/harness/postflight-check.ps1` | Post-flight verification + deterministic receipt output (14 checks) |
 | `scripts/harness/new-sprint-receipt.ps1` | Standardized sprint receipt generator (Markdown, deterministic, postflight JSON ingestion) |
+| `scripts/harness/run-contract-checks.ps1` | Unified contract test runner (list/selective/all-safe modes, deterministic JSON output, 44 registered checks) |
 | `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` | Full remaining sprint map (20 sprints, 5 phases) |
 | `docs/planning/WIN-PC-SPRINT-GUARDRAIL-NEEDS.md` | 13 guardrail categories, 4 profile classifications |
 | `.gitignore` | Exclusion policy for models, logs, secrets |
@@ -163,26 +165,31 @@ The three-link runtime proof chain is sealed:
 8. Refer to `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md` for current sprint priority
 9. Consult `docs/planning/WIN-AGENT-HARNESS-ENV-BASELINE-1-BASELINE.md` for full machine environment reference
 10. Address or defer findings from baseline report (see Findings Register §24) before starting service-level work
+11. Optionally run `.\scripts\harness\run-contract-checks.ps1 -AllSafe` before starting new work to validate existing contract tests
 
 ## Next Sprint Specification
 
-**WIN-HARNESS-CONTRACT-RUNNER-1** — Unified contract test runner wrapping existing test scripts.
+**WIN-HARNESS-BASELINE-DIFF-1** — Baseline drift detection tool comparing current
+environment state against a frozen baseline and reporting deviations.
 
 ### Why this comes next
-The three-tool harness core is now complete:
+The four-tool harness core is now complete:
 - Pre-flight: `scripts/harness/pre-mutation-check.ps1` (WIN-PACKET-VALIDATION-HOOK-1)
 - Post-flight: `scripts/harness/postflight-check.ps1` (WIN-HARNESS-POSTFLIGHT-1)
-- Receipt generation: `scripts/harness/new-sprint-receipt.ps1` (this sprint)
+- Receipt generation: `scripts/harness/new-sprint-receipt.ps1` (WIN-HARNESS-RECEIPT-TEMPLATE-1)
+- Contract runner: `scripts/harness/run-contract-checks.ps1` (WIN-HARNESS-CONTRACT-RUNNER-1)
 
-The next step is a unified contract test runner that wraps the existing 50+ test scripts
-into a single harness action with structured pass/fail output.
+The next logical step is automated baseline drift detection — comparing current
+environment state (service, ports, processes, disk, git) against the frozen baseline
+snapshot at `docs/planning/WIN-AGENT-HARNESS-ENV-BASELINE-1-BASELINE.md` and
+reporting deviations automatically.
 
 See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining sprint map.
 
-### After WIN-HARNESS-RECEIPT-TEMPLATE-1
-- **WIN-HARNESS-CONTRACT-RUNNER-1** (recommended): unified contract test runner
-- **WIN-HARNESS-BASELINE-DIFF-1**: baseline drift detection tool
+### After WIN-HARNESS-CONTRACT-RUNNER-1
+- **WIN-HARNESS-BASELINE-DIFF-1** (recommended): baseline drift detection tool
 - **WIN-SPRINT-LEDGER-1**: sprint ledger convention
+- **WIN-HARNESS-PARITY-ROADMAP-1**: harness parity roadmap update
 
 ### Harness tools available
 
@@ -204,10 +211,17 @@ See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining spri
   -NextSprint "WIN-NEXT" -NextSprintRationale "Rationale."
 ```
 
-Exit code 0 = PASS, exit code 1 = FAIL for all three tools.
+**Contract runner:**
+```powershell
+.\scripts\harness\run-contract-checks.ps1 -List
+.\scripts\harness\run-contract-checks.ps1 -AllSafe
+.\scripts\harness\run-contract-checks.ps1 -CheckName <name>[,<name>]
+```
+
+Exit code 0 = PASS, exit code 1 = FAIL for all four tools.
 
 ### Suggested session prompt
-See `docs/sprints/WIN-PC-REMAINING-SPRINTS-PLAN-1.md` for sprint specification.
+See `docs/sprints/WIN-HARNESS-CONTRACT-RUNNER-1.md` for sprint specification.
 See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining sprint map.
 
 ## Key Environment Facts (from Baseline)
