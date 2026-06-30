@@ -20,8 +20,8 @@
 
 For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 
-**Current baseline:** librarian-runtime-node `0942096`, TheLibrarian-main `1e32002`
-**Last sealed sprint:** WIN-RUST-PATH-RESTORE-1
+**Current baseline:** librarian-runtime-node `44d1bcf`, TheLibrarian-main `1e32002`
+**Last sealed sprint:** WIN-HARNESS-ACTION-RECEIPTS-1
 
 | Sprint | Status |
 |--------|--------|
@@ -48,7 +48,8 @@ For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 | WIN-HARNESS-BASELINE-DIFF-1 | ✅ Done |
 | WIN-RUST-TOOLCHAIN-DRIFT-TRIAGE-1 | ✅ Done |
 | WIN-SPRINT-LEDGER-1 | ✅ Done |
-| **WIN-RUST-PATH-RESTORE-1** | **← Current sprint (ready for review)** |
+| WIN-RUST-PATH-RESTORE-1 | ✅ Done |
+| **WIN-HARNESS-ACTION-RECEIPTS-1** | **← Current sprint (ready for review)** |
 
 ## Proof Chain Complete
 
@@ -71,7 +72,7 @@ The three-link runtime proof chain is sealed:
 ## Current State (repos)
 
 ### librarian-runtime-node
-- **HEAD**: `0942096` — `WIN-SPRINT-LEDGER-1 sprint ledger`
+- **HEAD**: `44d1bcf` — `fix(harness): restore WIN-RUST-PATH-RESTORE-1 rustup PATH shims`
 - **Working tree**: Clean ✅
 - **Service**: `LibrarianRunTimeNode` is Stopped / Manual ✅
 - **Port 9130**: Free ✅
@@ -174,32 +175,37 @@ The three-link runtime proof chain is sealed:
 
 ## Next Sprint Specification
 
-**WIN-HARNESS-ACTION-RECEIPTS-1** — Create granular action receipt generation for
-discrete harness actions (service start, port check, model select).
+**WIN-HARNESS-CUSTODY-LEDGER-1** — Implement a custody ledger that records
+every discrete action performed by the harness across sprints.
 
 ### Why this comes next
-The eight-tool harness core is now complete and the only actionable baseline drift
-(Rust toolchain PATH) has been cleared:
+The nine-tool harness core is now complete:
 
 - Pre-flight: `scripts/harness/pre-mutation-check.ps1`
 - Post-flight: `scripts/harness/postflight-check.ps1`
-- Receipt generation: `scripts/harness/new-sprint-receipt.ps1`
+- Receipt generation (sprint): `scripts/harness/new-sprint-receipt.ps1`
 - Contract runner: `scripts/harness/run-contract-checks.ps1`
 - Baseline drift detection: `scripts/harness/baseline-diff.ps1`
 - Sprint ledger: `project-state/sprint-ledger.json`
+- Sprint ledger validator: `scripts/harness/validate-sprint-ledger.ps1`
 - Drift triage: `WIN-RUST-TOOLCHAIN-DRIFT-TRIAGE-1` (investigated rustc NOT_FOUND)
 - Path restore: `WIN-RUST-PATH-RESTORE-1` (recreated `.cargo\bin\` proxy shims, drift cleared)
+- **Action receipts**: `scripts/harness/new-action-receipt.ps1` (granular action-level receipts)
 
 The rustup proxy shim directory has been recreated with wrapper `.cmd` scripts in
 `%USERPROFILE%\.cargo\bin\`. `rustc 1.96.0` and `cargo 1.96.0` are accessible from PATH.
 Run `baseline-diff -Section rust_version` to verify.
 
+The next sprint extends the action receipt infrastructure with a custody ledger.
+Note: WIN-HARNESS-CLEANUP-1 (C: drive space reclamation) should be considered
+only if a fresh baseline-diff or disk check confirms C: is critically low.
+
 See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining sprint map.
 
-### After WIN-RUST-PATH-RESTORE-1
-- **WIN-RUST-PATH-RESTORE-1** ✅ Done: rustup proxy shims restored, rustc/cargo on PATH
-- **WIN-HARNESS-ACTION-RECEIPTS-1** (recommended): granular action receipts
-- **WIN-HARNESS-CLEANUP-1**: C: drive space cleanup
+### After WIN-HARNESS-ACTION-RECEIPTS-1
+- **WIN-HARNESS-ACTION-RECEIPTS-1** ✅ Done: granular action receipts implemented
+- **WIN-HARNESS-CUSTODY-LEDGER-1** (recommended): action custody ledger
+- **WIN-HARNESS-CLEANUP-1**: C: drive space cleanup (only if baseline-diff confirms critical)
 
 ### Harness tools available
 
@@ -241,7 +247,20 @@ See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining spri
 .\scripts\harness\validate-sprint-ledger.ps1
 ```
 
-Exit code 0 = PASS/CLEAN, exit code 1 = FAIL/DRIFT for all six tools.
+**Action receipt generator:**
+```powershell
+.\scripts\harness\new-action-receipt.ps1 -ActionId "WIN-HARNESS-AR-001" -SprintId "WIN-MY-SPRINT" `
+  -ActionType "preflight_check" -CommandInvoked ".\scripts\harness\pre-mutation-check.ps1 -ExpectedHead 44d1bcf" `
+  -CustodyClass "controlled_mutation" -AllowedMutationScope "scripts/harness/" `
+  -ForbiddenMutationScope "rust-router/, runtime/bin/" -StartingHead "abc" -EndingHead "abc" `
+  -ExitCode 0 -Result "PASS" -OutputPath "docs/receipts/actions/WIN-HARNESS-AR-001.md" `
+  -WorkingTreeBefore "Clean" -WorkingTreeAfter "Clean" `
+  -EvidencePaths @("scripts/harness/pre-mutation-check.ps1") `
+  -Notes @("All 11 pre-mutation checks passed") `
+  -JsonOutputPath "docs/receipts/actions/WIN-HARNESS-AR-001.json"
+```
+
+Exit code 0 = PASS/CLEAN, exit code 1 = FAIL/DRIFT for all seven tools.
 
 ### Suggested session prompt
 See `docs/sprints/WIN-SPRINT-LEDGER-1.md` for sprint specification.

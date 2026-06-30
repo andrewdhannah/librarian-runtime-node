@@ -1,15 +1,15 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-06-30T01:17:00Z",
-  "generated_by": "WIN-RUST-PATH-RESTORE-1",
+  "generated_at": "2026-06-30T01:30:00Z",
+  "generated_by": "WIN-HARNESS-ACTION-RECEIPTS-1",
   "current_head": {
-    "full": "27b2b268e41be4ff9a6cfd8fc026ac5cd90adf04",
-    "short": "27b2b26",
+    "full": "44d1bcf2e9a62d9150bad52f4398501e54b8fcc1",
+    "short": "44d1bcf",
     "branch": "main"
   },
   "origin_sync_state": "in_sync",
   "active_sprint": null,
-  "next_authorized_sprint": "WIN-HARNESS-ACTION-RECEIPTS-1",
+  "next_authorized_sprint": "WIN-HARNESS-CUSTODY-LEDGER-1",
   "sprints": [
     {
       "sprint_id": "RUNTIME-REPO-INIT-1",
@@ -461,7 +461,7 @@
     {
       "sprint_id": "WIN-RUST-PATH-RESTORE-1",
       "status": "sealed",
-      "commit": "27b2b26",
+      "commit": "44d1bcf",
       "pushed": true,
       "branch": "main",
       "receipt_path": "docs/receipts/WIN-RUST-PATH-RESTORE-1-RECEIPT.md",
@@ -475,6 +475,25 @@
       "owner_review_required": false,
       "next_sprint": "WIN-HARNESS-ACTION-RECEIPTS-1",
       "notes": "Restored .cargo\\bin\\ proxy shims; rustc 1.96.0, cargo 1.96.0 accessible from PATH; baseline-diff rust_version OK"
+    },
+    {
+      "sprint_id": "WIN-HARNESS-ACTION-RECEIPTS-1",
+      "status": "ready_for_review",
+      "commit": "44d1bcf",
+      "pushed": false,
+      "branch": "main",
+      "receipt_path": "docs/receipts/WIN-HARNESS-ACTION-RECEIPTS-1-RECEIPT.md",
+      "sprint_doc_path": "docs/sprints/WIN-HARNESS-ACTION-RECEIPTS-1.md",
+      "primary_files": [
+        "scripts/harness/new-action-receipt.ps1",
+        "docs/sprints/WIN-HARNESS-ACTION-RECEIPTS-1.md",
+        "docs/receipts/WIN-HARNESS-ACTION-RECEIPTS-1-RECEIPT.md"
+      ],
+      "category": "harness",
+      "phase": "0b",
+      "owner_review_required": false,
+      "next_sprint": "WIN-HARNESS-CUSTODY-LEDGER-1",
+      "notes": "Granular action receipt generator for discrete harness actions with deterministic Markdown + optional JSON output, 9 recognized action types, 12 acceptance gates passed"
     }
   ]
 }
