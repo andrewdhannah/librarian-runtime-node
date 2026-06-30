@@ -21,7 +21,7 @@
 For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 
 **Current baseline:** librarian-runtime-node `85060f8`, TheLibrarian-main `1e32002`
-**Last sealed sprint:** WIN-HARNESS-RECEIPT-TEMPLATE-1
+**Last sealed sprint:** WIN-HARNESS-CONTRACT-RUNNER-1
 
 | Sprint | Status |
 |--------|--------|
@@ -44,7 +44,8 @@ For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 | WIN-PC-REMAINING-SPRINTS-PLAN-1 | ✅ Done |
 | WIN-HARNESS-POSTFLIGHT-1 | ✅ Done |
 | WIN-HARNESS-RECEIPT-TEMPLATE-1 | ✅ Done |
-| **WIN-HARNESS-CONTRACT-RUNNER-1** | **← Current sprint (ready for review)** |
+| WIN-HARNESS-CONTRACT-RUNNER-1 | ✅ Done |
+| **WIN-HARNESS-BASELINE-DIFF-1** | **← Current sprint (ready for review)** |
 
 ## Proof Chain Complete
 
@@ -133,6 +134,7 @@ The three-link runtime proof chain is sealed:
 | `scripts/harness/postflight-check.ps1` | Post-flight verification + deterministic receipt output (14 checks) |
 | `scripts/harness/new-sprint-receipt.ps1` | Standardized sprint receipt generator (Markdown, deterministic, postflight JSON ingestion) |
 | `scripts/harness/run-contract-checks.ps1` | Unified contract test runner (list/selective/all-safe modes, deterministic JSON output, 44 registered checks) |
+| `scripts/harness/baseline-diff.ps1` | Baseline drift detection tool (11 comparison sections, read-only, JSON output, compares current state against frozen baseline) |
 | `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` | Full remaining sprint map (20 sprints, 5 phases) |
 | `docs/planning/WIN-PC-SPRINT-GUARDRAIL-NEEDS.md` | 13 guardrail categories, 4 profile classifications |
 | `.gitignore` | Exclusion policy for models, logs, secrets |
@@ -169,26 +171,26 @@ The three-link runtime proof chain is sealed:
 
 ## Next Sprint Specification
 
-**WIN-HARNESS-BASELINE-DIFF-1** — Baseline drift detection tool comparing current
-environment state against a frozen baseline and reporting deviations.
+**WIN-SPRINT-LEDGER-1** — Sprint ledger convention. Create a machine-parseable
+sprint ledger for automated sprint tracking and audit.
 
 ### Why this comes next
-The four-tool harness core is now complete:
+The five-tool harness core is now complete:
 - Pre-flight: `scripts/harness/pre-mutation-check.ps1` (WIN-PACKET-VALIDATION-HOOK-1)
 - Post-flight: `scripts/harness/postflight-check.ps1` (WIN-HARNESS-POSTFLIGHT-1)
 - Receipt generation: `scripts/harness/new-sprint-receipt.ps1` (WIN-HARNESS-RECEIPT-TEMPLATE-1)
 - Contract runner: `scripts/harness/run-contract-checks.ps1` (WIN-HARNESS-CONTRACT-RUNNER-1)
+- Baseline drift detection: `scripts/harness/baseline-diff.ps1` (WIN-HARNESS-BASELINE-DIFF-1)
 
-The next logical step is automated baseline drift detection — comparing current
-environment state (service, ports, processes, disk, git) against the frozen baseline
-snapshot at `docs/planning/WIN-AGENT-HARNESS-ENV-BASELINE-1-BASELINE.md` and
-reporting deviations automatically.
+The next logical step is a formal sprint ledger — a machine-parseable record of
+all sprints with their status, HEADs, and findings — enabling automated sprint
+tracking and audit.
 
 See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining sprint map.
 
-### After WIN-HARNESS-CONTRACT-RUNNER-1
-- **WIN-HARNESS-BASELINE-DIFF-1** (recommended): baseline drift detection tool
-- **WIN-SPRINT-LEDGER-1**: sprint ledger convention
+### After WIN-HARNESS-BASELINE-DIFF-1
+- **WIN-SPRINT-LEDGER-1** (recommended): sprint ledger convention
+- **WIN-AGENT-HARNESS-CLEANUP-1**: C: drive space cleanup
 - **WIN-HARNESS-PARITY-ROADMAP-1**: harness parity roadmap update
 
 ### Harness tools available
@@ -218,7 +220,15 @@ See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining spri
 .\scripts\harness\run-contract-checks.ps1 -CheckName <name>[,<name>]
 ```
 
-Exit code 0 = PASS, exit code 1 = FAIL for all four tools.
+**Baseline drift detector:**
+```powershell
+.\scripts\harness\baseline-diff.ps1 -ListSections
+.\scripts\harness\baseline-diff.ps1 -All
+.\scripts\harness\baseline-diff.ps1 -Section <key>[,<key>]
+.\scripts\harness\baseline-diff.ps1 -All -Json -Quiet
+```
+
+Exit code 0 = PASS/CLEAN, exit code 1 = FAIL/DRIFT for all five tools.
 
 ### Suggested session prompt
 See `docs/sprints/WIN-HARNESS-CONTRACT-RUNNER-1.md` for sprint specification.
