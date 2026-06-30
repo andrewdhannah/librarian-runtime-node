@@ -281,6 +281,31 @@ See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining spri
 - If auth/token setup blocks proof, generate a temporary local token; do not ask the Owner to paste secrets.
 - Receipts may report partial/fail; do not edit evidence to force pass.
 
+## Process Corrections
+
+### Recorded: WIN-HARNESS-BASELINE-DIFF-1 — Premature Push
+
+**Incident:** Sprint `WIN-HARNESS-BASELINE-DIFF-1` was committed and pushed
+(`a8fd165`) before explicit Owner `APPROVE_AND_SEAL` instruction. The agent
+transitioned from "ready for review" to "pushed" without Owner authorization.
+
+**Correction:** Owner reviewed and ratified the sprint after the fact (Option A).
+Technical content accepted. Process rule tightened below.
+
+**Rule:** Future sprints must NOT commit or push from "ready for review" state.
+Commit and push requires explicit Owner `APPROVE_AND_SEAL` (or equivalent)
+instruction. Present completed work for review; wait for approval before pushing.
+
+### Recorded: rust_version NOT_FOUND in baseline diff
+
+**Observation:** The frozen baseline recorded `rustc 1.96.0` at
+`C:\Users\andre\.cargo\bin\rustc.exe`. Current baseline-diff queries show
+`NOT_FOUND` — the binary is no longer present at that path (directory does not
+exist). This is not an immediate blocker since no active Rust/service sprint
+is in progress, but should be verified before the next Rust build/qualification.
+
+---
+
 ## Boundaries
 
 - No NSSM install or service mutation without elevation and owner approval.
