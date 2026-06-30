@@ -20,8 +20,8 @@
 
 For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 
-**Current baseline:** librarian-runtime-node `85060f8`, TheLibrarian-main `1e32002`
-**Last sealed sprint:** WIN-HARNESS-BASELINE-DIFF-1
+**Current baseline:** librarian-runtime-node `59f4cba`, TheLibrarian-main `1e32002`
+**Last sealed sprint:** WIN-RUST-TOOLCHAIN-DRIFT-TRIAGE-1
 
 | Sprint | Status |
 |--------|--------|
@@ -46,7 +46,8 @@ For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 | WIN-HARNESS-RECEIPT-TEMPLATE-1 | ✅ Done |
 | WIN-HARNESS-CONTRACT-RUNNER-1 | ✅ Done |
 | WIN-HARNESS-BASELINE-DIFF-1 | ✅ Done |
-| **WIN-RUST-TOOLCHAIN-DRIFT-TRIAGE-1** | **← Current sprint (ready for review)** |
+| WIN-RUST-TOOLCHAIN-DRIFT-TRIAGE-1 | ✅ Done |
+| **WIN-SPRINT-LEDGER-1** | **← Current sprint (ready for review)** |
 
 ## Proof Chain Complete
 
@@ -69,8 +70,8 @@ The three-link runtime proof chain is sealed:
 ## Current State (repos)
 
 ### librarian-runtime-node
-- **HEAD**: `85060f8` — `WIN-HARNESS-RECEIPT-TEMPLATE-1 receipt generator`
-- **Working tree**: Clean (after commit) ✅
+- **HEAD**: `59f4cba` — `WIN-RUST-TOOLCHAIN-DRIFT-TRIAGE-1 Rust PATH drift investigation`
+- **Working tree**: Uncommitted (4 new sprint-ledger files) ⚠️
 - **Service**: `LibrarianRunTimeNode` is Stopped / Manual ✅
 - **Port 9130**: Free ✅
 - **Ports 9120-9125**: Free ✅
@@ -176,13 +177,14 @@ The three-link runtime proof chain is sealed:
 (`%USERPROFILE%\.cargo\bin\`) to make `rustc`/`cargo` accessible from shell PATH.
 
 ### Why this comes next
-The six-tool harness core is now complete:
+The seven-tool harness core is now complete:
 - Pre-flight: `scripts/harness/pre-mutation-check.ps1`
 - Post-flight: `scripts/harness/postflight-check.ps1`
 - Receipt generation: `scripts/harness/new-sprint-receipt.ps1`
 - Contract runner: `scripts/harness/run-contract-checks.ps1`
 - Baseline drift detection: `scripts/harness/baseline-diff.ps1`
 - Drift triage (this sprint): confirmed Rust toolchain 1.96.0 intact but shim layer missing
+- Sprint ledger: `project-state/sprint-ledger.json` (machine-readable sprint tracking)
 
 The next step is the repair: recreate `.cargo\bin\` proxy shims via `rustup toolchain link`
 or equivalent, then verify `baseline-diff -Section rust_version` reports OK.
@@ -191,7 +193,7 @@ See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining spri
 
 ### After WIN-RUST-TOOLCHAIN-DRIFT-TRIAGE-1
 - **WIN-RUST-PATH-RESTORE-1** (recommended): recreate rustup proxy shim directory
-- **WIN-SPRINT-LEDGER-1**: sprint ledger convention
+- **WIN-SPRINT-LEDGER-1** ✅ Done: sprint ledger convention (`project-state/sprint-ledger.json`)
 - **WIN-AGENT-HARNESS-CLEANUP-1**: C: drive space cleanup
 
 ### Harness tools available
@@ -229,10 +231,16 @@ See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining spri
 .\scripts\harness\baseline-diff.ps1 -All -Json -Quiet
 ```
 
-Exit code 0 = PASS/CLEAN, exit code 1 = FAIL/DRIFT for all five tools.
+**Sprint ledger validator:**
+```powershell
+.\scripts\harness\validate-sprint-ledger.ps1
+```
+
+Exit code 0 = PASS/CLEAN, exit code 1 = FAIL/DRIFT for all six tools.
 
 ### Suggested session prompt
-See `docs/sprints/WIN-HARNESS-CONTRACT-RUNNER-1.md` for sprint specification.
+See `docs/sprints/WIN-SPRINT-LEDGER-1.md` for sprint specification.
+See `project-state/sprint-ledger.json` for the machine-readable sprint ledger.
 See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining sprint map.
 
 ## Key Environment Facts (from Baseline)
