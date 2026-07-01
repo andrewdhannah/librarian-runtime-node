@@ -2,7 +2,7 @@
 
 > Quick summary for an agent or human picking up where the last session left off.
 > Root: `G:\OpenWork\librarian-runtime-node\`
-> Updated: 2026-06-30
+> Updated: 2026-07-01 (WIN-STARTUP-STATE-RECONCILE-1)
 
 ## Repo Identity
 
@@ -20,7 +20,7 @@
 
 For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 
-**Current baseline:** librarian-runtime-node `44d1bcf`, TheLibrarian-main `1e32002`
+**Current baseline:** librarian-runtime-node `5dc4d55`, TheLibrarian-main `1e32002`
 **Last sealed sprint:** WIN-HARNESS-ACTION-RECEIPTS-1
 
 | Sprint | Status |
@@ -49,7 +49,7 @@ For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 | WIN-RUST-TOOLCHAIN-DRIFT-TRIAGE-1 | ✅ Done |
 | WIN-SPRINT-LEDGER-1 | ✅ Done |
 | WIN-RUST-PATH-RESTORE-1 | ✅ Done |
-| **WIN-HARNESS-ACTION-RECEIPTS-1** | **← Current sprint (ready for review)** |
+| **WIN-HARNESS-ACTION-RECEIPTS-1** | ✅ Done (already sealed at `5dc4d55`; reconciled ledger/handoff metadata in WIN-STARTUP-STATE-RECONCILE-1) |
 
 ## Proof Chain Complete
 
@@ -250,7 +250,7 @@ See `docs/planning/WIN-PC-REMAINING-SPRINTS-PLAN.md` for the full remaining spri
 **Action receipt generator:**
 ```powershell
 .\scripts\harness\new-action-receipt.ps1 -ActionId "WIN-HARNESS-AR-001" -SprintId "WIN-MY-SPRINT" `
-  -ActionType "preflight_check" -CommandInvoked ".\scripts\harness\pre-mutation-check.ps1 -ExpectedHead 44d1bcf" `
+  -ActionType "preflight_check" -CommandInvoked ".\scripts\harness\pre-mutation-check.ps1 -ExpectedHead 5dc4d55" `
   -CustodyClass "controlled_mutation" -AllowedMutationScope "scripts/harness/" `
   -ForbiddenMutationScope "rust-router/, runtime/bin/" -StartingHead "abc" -EndingHead "abc" `
   -ExitCode 0 -Result "PASS" -OutputPath "docs/receipts/actions/WIN-HARNESS-AR-001.md" `

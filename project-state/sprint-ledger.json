@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-06-30T01:30:00Z",
-  "generated_by": "WIN-HARNESS-ACTION-RECEIPTS-1",
+  "generated_at": "2026-07-01T00:00:00Z",
+  "generated_by": "WIN-STARTUP-STATE-RECONCILE-1",
   "current_head": {
-    "full": "44d1bcf2e9a62d9150bad52f4398501e54b8fcc1",
-    "short": "44d1bcf",
+    "full": "5dc4d5554e3b98c596b137681f918bc66457eae9",
+    "short": "5dc4d55",
     "branch": "main"
   },
   "origin_sync_state": "in_sync",
@@ -478,9 +478,9 @@
     },
     {
       "sprint_id": "WIN-HARNESS-ACTION-RECEIPTS-1",
-      "status": "ready_for_review",
-      "commit": "44d1bcf",
-      "pushed": false,
+      "status": "sealed",
+      "commit": "5dc4d55",
+      "pushed": true,
       "branch": "main",
       "receipt_path": "docs/receipts/WIN-HARNESS-ACTION-RECEIPTS-1-RECEIPT.md",
       "sprint_doc_path": "docs/sprints/WIN-HARNESS-ACTION-RECEIPTS-1.md",
