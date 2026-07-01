@@ -2,7 +2,7 @@
 
 > Quick summary for an agent or human picking up where the last session left off.
 > Root: `G:\OpenWork\librarian-runtime-node\`
-> Updated: 2026-07-01 (WIN-STARTUP-STATE-RECONCILE-1)
+> Updated: 2026-07-01 (WIN-MULTIPLATFORM-LIBRARIAN-PLANNING-1)
 
 ## Repo Identity
 
@@ -20,8 +20,8 @@
 
 For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 
-**Current baseline:** librarian-runtime-node `5dc4d55`, TheLibrarian-main `1e32002`
-**Last sealed sprint:** WIN-HARNESS-ACTION-RECEIPTS-1
+**Current baseline:** librarian-runtime-node `05aabee`, TheLibrarian-main `1e32002`
+**Last sealed sprint:** WIN-MULTIPLATFORM-LIBRARIAN-PLANNING-1
 
 | Sprint | Status |
 |--------|--------|
@@ -50,6 +50,7 @@ For the full up-to-date roadmap see `docs/roadmap/WINDOWS-PC-SPRINT-ROADMAP.md`.
 | WIN-SPRINT-LEDGER-1 | ✅ Done |
 | WIN-RUST-PATH-RESTORE-1 | ✅ Done |
 | **WIN-HARNESS-ACTION-RECEIPTS-1** | ✅ Done (already sealed at `5dc4d55`; reconciled ledger/handoff metadata in WIN-STARTUP-STATE-RECONCILE-1) |
+| **WIN-MULTIPLATFORM-LIBRARIAN-PLANNING-1** | ✅ Done (planning inputs for Mac canonical design) |
 
 ## Proof Chain Complete
 

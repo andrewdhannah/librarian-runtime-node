@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-07-01T00:00:00Z",
-  "generated_by": "WIN-STARTUP-STATE-RECONCILE-1",
+  "generated_at": "2026-07-01T12:00:00Z",
+  "generated_by": "WIN-MULTIPLATFORM-LIBRARIAN-PLANNING-1",
   "current_head": {
-    "full": "5dc4d5554e3b98c596b137681f918bc66457eae9",
-    "short": "5dc4d55",
+    "full": "05aabeebf3fcce6038a233ef1853bff62bb51a75",
+    "short": "05aabee",
     "branch": "main"
   },
   "origin_sync_state": "in_sync",
@@ -494,6 +494,26 @@
       "owner_review_required": false,
       "next_sprint": "WIN-HARNESS-CUSTODY-LEDGER-1",
       "notes": "Granular action receipt generator for discrete harness actions with deterministic Markdown + optional JSON output, 9 recognized action types, 12 acceptance gates passed"
+    },
+    {
+      "sprint_id": "WIN-MULTIPLATFORM-LIBRARIAN-PLANNING-1",
+      "status": "sealed",
+      "commit": "05aabee",
+      "pushed": false,
+      "branch": "main",
+      "receipt_path": "docs/receipts/WIN-MULTIPLATFORM-LIBRARIAN-PLANNING-1-RECEIPT.md",
+      "sprint_doc_path": "docs/sprints/WIN-MULTIPLATFORM-LIBRARIAN-PLANNING-1.md",
+      "primary_files": [
+        "docs/planning/WIN-MULTIPLATFORM-LIBRARIAN-PLANNING.md",
+        "docs/planning/WIN-MULTINODE-MCP-DOCUMENT-CUSTODY-NOTES.md",
+        "docs/planning/WIN-MAC-REWRITE-PORTABILITY-IMPACT.md",
+        "docs/planning/WIN-CROSSPLATFORM-ALGORITHM-PORTABILITY.md"
+      ],
+      "category": "planning",
+      "phase": "0b",
+      "owner_review_required": false,
+      "next_sprint": "WIN-HARNESS-CUSTODY-LEDGER-1",
+      "notes": "Windows-side planning docs for multiplatform Librarian: node roles, MCP custody, Mac rewrite portability, cross-platform algorithm portability"
     }
   ]
 }
